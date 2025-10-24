@@ -2,7 +2,52 @@
 
 import React, { useState, useMemo } from "react";
 import { Archive, Layers, Ruler, Mail, Phone, User, Send } from "lucide-react";
-import "tailwindcss";
+
+// --- INTERFACES ---
+interface FormData {
+  format: string;
+  customWidth: string;
+  customHeight: string;
+  quantity: number;
+  material: string;
+  finishes: string[];
+  name: string;
+  email: string;
+  phone: string;
+  file: File | null;
+}
+
+interface SubmissionMessage {
+  type: 'success' | 'error';
+  text: string;
+}
+
+interface FormSectionProps {
+  title: string;
+  icon: React.ComponentType<any>;
+  children: React.ReactNode;
+}
+
+interface InputFieldProps {
+  label: string;
+  name: string;
+  type?: string;
+  value: any;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  placeholder?: string;
+  icon?: React.ComponentType<any>;
+  required?: boolean;
+  error?: string;
+}
+
+interface SelectFieldProps {
+  label: string;
+  name: string;
+  value: any;
+  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  options: any[];
+  required?: boolean;
+}
 
 // --- DANE ---
 const FORMATS = [
@@ -28,14 +73,7 @@ const FINISHES = [
 
 const BASE_PRICE_PER_SQM = 40.0; // PLN/m²
 
-interface FormSectionProps {
-  title: string;
-  icon: React.ElementType; // Type for the Icon component (like Ruler, Archive, etc.)
-  children: React.ReactNode; // Type for any valid React children
-}
-
-// --- Komponenty pomocnicze ---
-const FormSection = ({ title, icon: Icon, children }: FormSectionProps) => (
+const FormSection: React.FC<FormSectionProps> = ({ title, icon: Icon, children }) => (
   <section className="mb-8 p-6 bg-white shadow-sm rounded-2xl transition hover:shadow-md">
     <h2 className="text-lg md:text-xl font-semibold mb-5 flex items-center text-indigo-700 border-b pb-2 border-indigo-100">
       <Icon className="w-5 h-5 mr-2 text-indigo-500" />
@@ -45,7 +83,7 @@ const FormSection = ({ title, icon: Icon, children }: FormSectionProps) => (
   </section>
 );
 
-const InputField = ({
+const InputField: React.FC<InputFieldProps> = ({
   label,
   name,
   type = "text",
@@ -83,7 +121,7 @@ const InputField = ({
   </div>
 );
 
-const SelectField = ({ label, name, value, onChange, options, required = false }) => (
+const SelectField: React.FC<SelectFieldProps> = ({ label, name, value, onChange, options, required = false }) => (
   <div className="w-full">
     <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
       {label} {required && <span className="text-red-500">*</span>}
@@ -113,9 +151,8 @@ const SelectField = ({ label, name, value, onChange, options, required = false }
   </div>
 );
 
-// --- Główny komponent ---
 const AppForm = () => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     format: FORMATS[0].name,
     customWidth: "",
     customHeight: "",
@@ -129,12 +166,11 @@ const AppForm = () => {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submissionMessage, setSubmissionMessage] = useState(null);
-  const [errors, setErrors] = useState({});
+  const [submissionMessage, setSubmissionMessage] = useState<SubmissionMessage | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Kalkulacja ceny
   const calculatePrice = useMemo(() => {
-    let width_cm, height_cm, quantity;
+    let width_cm: number, height_cm: number, quantity: number;
     if (formData.format === "Wymiary Niestandardowe") {
       width_cm = parseFloat(formData.customWidth) || 0;
       height_cm = parseFloat(formData.customHeight) || 0;
@@ -143,7 +179,7 @@ const AppForm = () => {
       width_cm = selectedFormat?.width || 0;
       height_cm = selectedFormat?.height || 0;
     }
-    quantity = parseInt(formData.quantity) || 0;
+    quantity = parseInt(formData.quantity.toString()) || 0;
     const area_sqm = (width_cm / 100) * (height_cm / 100);
     const material = MATERIALS.find((m) => m.id === formData.material);
     const printCost = area_sqm * BASE_PRICE_PER_SQM * (material?.multiplier || 1);
@@ -157,9 +193,10 @@ const AppForm = () => {
     return total > 0 ? total.toFixed(2) : "---";
   }, [formData]);
 
-  // Obsługa zmian
-  const handleChange = (e) => {
-    const { name, value, type, checked, files } = e.target;
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    const checked = (e.target as HTMLInputElement).checked;
+    const files = (e.target as HTMLInputElement).files;
     if (type === "checkbox") {
       setFormData((prev) => ({
         ...prev,
@@ -168,20 +205,18 @@ const AppForm = () => {
           : prev.finishes.filter((f) => f !== name),
       }));
     } else if (type === "file") {
-      setFormData((prev) => ({ ...prev, file: files[0] }));
+      setFormData((prev) => ({ ...prev, file: files ? files[0] : null }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
 
-  // Walidacja
   const validate = () => {
-    const newErrors = {};
+    const newErrors: Record<string, string> = {};
     if (!formData.name.trim()) newErrors.name = "Wpisz swoje imię lub nazwę firmy.";
     if (!/^[\w.-]+@([\w-]+\.)+[\w-]{2,4}$/.test(formData.email))
       newErrors.email = "Podaj poprawny adres e-mail.";
-
-    if (!/^\\+?(\\d.*){9,15}$/.test(formData.phone))
+    if (!/^\+?[0-9\s()-]{9,15}$/.test(formData.phone))
       newErrors.phone = "Podaj poprawny numer telefonu.";
     if (
       formData.format === "Wymiary Niestandardowe" &&
@@ -193,8 +228,7 @@ const AppForm = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Obsługa wysyłki
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!validate()) {
       setSubmissionMessage({
@@ -345,9 +379,7 @@ const AppForm = () => {
             <p className="text-gray-500 text-xs uppercase font-semibold">
               Szacowana cena netto:
             </p>
-            <p className="text-2xl font-bold text-indigo-700">
-              {calculatePrice} PLN
-            </p>
+            <p className="text-2xl font-bold text-indigo-700">{calculatePrice} PLN</p>
           </div>
 
           <button
