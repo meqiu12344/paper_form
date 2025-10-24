@@ -28,8 +28,14 @@ const FINISHES = [
 
 const BASE_PRICE_PER_SQM = 40.0; // PLN/m²
 
+interface FormSectionProps {
+  title: string;
+  icon: React.ElementType; // Type for the Icon component (like Ruler, Archive, etc.)
+  children: React.ReactNode; // Type for any valid React children
+}
+
 // --- Komponenty pomocnicze ---
-const FormSection = ({ title: any, icon: Icon, children }) => (
+const FormSection = ({ title, icon: Icon, children }: FormSectionProps) => (
   <section className="mb-8 p-6 bg-white shadow-sm rounded-2xl transition hover:shadow-md">
     <h2 className="text-lg md:text-xl font-semibold mb-5 flex items-center text-indigo-700 border-b pb-2 border-indigo-100">
       <Icon className="w-5 h-5 mr-2 text-indigo-500" />
