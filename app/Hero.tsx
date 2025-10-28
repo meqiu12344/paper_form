@@ -46,13 +46,25 @@ export default function Hero() {
           24h w całej Polsce.
         </motion.p>
 
-        <motion.a
-          href="#dlaczego-my"
-          whileHover={{ scale: 1.05 }}
-          className="inline-block bg-white text-indigo-700 font-semibold px-6 py-3 rounded-full hover:bg-indigo-100 transition"
-        >
-          Dowiedz się więcej
-        </motion.a>
+        <div className="flex center-center gap-10 m-auto max-w-md justify-center">
+          <motion.a
+            href="#formularz-drukowania"
+            whileHover={{ scale: 1.05 }}
+            className="flex items-center bg-indigo-600 text-white font-semibold px-6 py-3 rounded-full hover:bg-indigo-700 transition"
+          >
+            Zamów druk
+          </motion.a>
+
+          <motion.a
+            href="#formilarz-skanowania"
+            whileHover={{ scale: 1.05 }}
+            className="inline-block border-4 border-white text-white font-semibold px-6 py-3 rounded-full transition"
+          >
+            Zamów skan
+          </motion.a>
+        </div>
+
+
       </div>
     </motion.section>
   );

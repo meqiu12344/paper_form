@@ -3,7 +3,7 @@
 import { motion } from "framer-motion";
 import { Award, Clock, ShieldCheck } from "lucide-react";
 
-export default function DlaczegoMy() {
+export default function Why_us() {
   return (
     <motion.section
       id="dlaczego-my"

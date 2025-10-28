@@ -52,31 +52,31 @@ interface SelectFieldProps {
 }
 
 interface PriceItem {
-    id: string;
-    label: string;
-    width: number; // width in mm
-    height: number; // height in mm
-    price_pln_netto: number; // base price netto (from CSV)
+  id: string;
+  label: string;
+  width: number; // width in mm
+  height: number; // height in mm
+  price_pln_netto: number; // base price netto (from CSV)
 }
 
 interface MaterialItem {
-    id: string;
-    label: string;
-    price_multiplier: number;
+  id: string;
+  label: string;
+  price_multiplier: number;
 }
 
 interface LengthMultiplierItem {
-    id: string;
-    label: string;
-    multiplier: number;
-    description: string;
+  id: string;
+  label: string;
+  multiplier: number;
+  description: string;
 }
 
 // NEW: Color options interface
 interface ColorItem {
-    id: string;
-    label: string;
-    multiplier: number;
+  id: string;
+  label: string;
+  multiplier: number;
 }
 
 // --- DANE (CENNIK Z CSV) ---
@@ -96,7 +96,7 @@ const FORMATS: PriceItem[] = [
   { id: "B2", label: "B2 (707x500 mm)", width: 500, height: 707, price_pln_netto: 7.80 },
   { id: "B1", label: "B1 (1000x707 mm)", width: 707, height: 1000, price_pln_netto: 11.71 },
   { id: "B0", label: "B0 (1414x1000 mm)", width: 1000, height: 1414, price_pln_netto: 16.58 },
-  
+
   { id: "CUSTOM", label: "Własny rozmiar", width: 0, height: 0, price_pln_netto: 0 },
 ];
 
@@ -104,27 +104,27 @@ const FORMATS: PriceItem[] = [
 const MATERIALS: MaterialItem[] = [
   { id: "STANDARD_80", label: "Rys. Techniczny / Papier standardowy 80g/m²", price_multiplier: 1.0 }, // CENA = x1
   { id: "COATED_180", label: "Plakat / Papier powlekany 180g/m²", price_multiplier: 2.0 }, // CENA = x2
-  { id: "PHOTO_SATIN", label: "Fotografia / Papier fotograficzny Satyna/Perła", price_multiplier: 3.0 }, // Przyjmuję x3 na podstawie ceny PLAKAT A0/P.KOLOR A0 vs CAD A0
+  { id: "PHOTO_SATIN", label: "Fotografia / Papier fotograficzny Satyna/Perła 260g/m²", price_multiplier: 3.0 }, // Przyjmuję x3 na podstawie ceny PLAKAT A0/P.KOLOR A0 vs CAD A0
 ];
 
 // Mnożniki długości wydruku z rolki (DŁUŻSZY BOK x1...x6 z CSV)
 const LENGTH_MULTIPLIERS: LengthMultiplierItem[] = [
-    { id: "x1", label: "Długość x1 (standard)", multiplier: 1, description: "Standardowa długość formatu (np. A0)" },
-    { id: "x2", label: "Długość x2 (druk z rolki)", multiplier: 2, description: "Wielokrotność formatu x2" },
-    { id: "x3", label: "Długość x3 (druk z rolki)", multiplier: 3, description: "Wielokrotność formatu x3" },
-    { id: "x4", label: "Długość x4 (druk z rolki)", multiplier: 4, description: "Wielokrotność formatu x4" },
-    { id: "x5", label: "Długość x5 (druk z rolki)", multiplier: 5, description: "Wielokrotność formatu x5" },
-    { id: "x6", label: "Długość x6 (druk z rolki)", multiplier: 6, description: "Wielokrotność formatu x6" },
+  { id: "x1", label: "Długość x1 (standard)", multiplier: 1, description: "Standardowa długość formatu (np. A0)" },
+  { id: "x2", label: "Długość x2 (druk z rolki)", multiplier: 2, description: "Wielokrotność formatu x2" },
+  { id: "x3", label: "Długość x3 (druk z rolki)", multiplier: 3, description: "Wielokrotność formatu x3" },
+  { id: "x4", label: "Długość x4 (druk z rolki)", multiplier: 4, description: "Wielokrotność formatu x4" },
+  { id: "x5", label: "Długość x5 (druk z rolki)", multiplier: 5, description: "Wielokrotność formatu x5" },
+  { id: "x6", label: "Długość x6 (druk z rolki)", multiplier: 6, description: "Wielokrotność formatu x6" },
 ];
 
 // NEW: Lista kolorów z mnożnikami cenowymi
 const COLOR_OPTIONS: ColorItem[] = [
-    { id: "1", label: "DRUK CZARNO-BIAŁY, DO 10% POW. ZADRUKU", multiplier: 1.0 },
-    { id: "2", label: "DRUK CZARNO-BIAŁY, DO 50% POW. ZADRUKU", multiplier: 2.0 }, // Lekko zwiększam mnożnik względem 1.0 dla opcji Monochromatycznej
-    { id: "3", label: "DRUK CZARNO-BIAŁY, PONAD 50% POW. ZADRUKU", multiplier: 3.0 },
-    { id: "4", label: "DRUK KOLOROWY, DO 10% POW. ZADRUKU", multiplier: 2.0 },
-    { id: "5", label: "DRUK KOLOROWY, DO 50% POW. ZADRUKU", multiplier: 3.0 },
-    { id: "6", label: "DRUK KOLOROWY, PONAD 50% POW. ZADRUKU", multiplier: 4.0 },
+  { id: "1", label: "DRUK CZARNO-BIAŁY, DO 10% POW. ZADRUKU", multiplier: 1.0 },
+  { id: "2", label: "DRUK CZARNO-BIAŁY, DO 50% POW. ZADRUKU", multiplier: 2.0 }, // Lekko zwiększam mnożnik względem 1.0 dla opcji Monochromatycznej
+  { id: "3", label: "DRUK CZARNO-BIAŁY, PONAD 50% POW. ZADRUKU", multiplier: 3.0 },
+  { id: "4", label: "DRUK KOLOROWY, DO 10% POW. ZADRUKU", multiplier: 2.0 },
+  { id: "5", label: "DRUK KOLOROWY, DO 50% POW. ZADRUKU", multiplier: 3.0 },
+  { id: "6", label: "DRUK KOLOROWY, PONAD 50% POW. ZADRUKU", multiplier: 4.0 },
 ];
 
 // --- KOMPONENTY POMOCNICZE ---
@@ -189,7 +189,7 @@ const SelectField: React.FC<SelectFieldProps> = ({ label, name, value, onChange,
 
 // --- KOMPONENT GŁÓWNY ---
 
-const AppForm: React.FC = () => {
+const Print_pricing: React.FC = () => {
   const initialData: FormData = {
     format: "A4",
     customWidth: "",
@@ -217,10 +217,10 @@ const AppForm: React.FC = () => {
       const file = (e.target as HTMLInputElement).files?.[0] || null;
       setFormData(prev => ({ ...prev, [name]: file }));
     } else {
-        setFormData(prev => ({
-            ...prev,
-            [name]: type === 'number' ? Math.max(1, parseInt(value, 10) || 1) : value,
-        }));
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'number' ? Math.max(1, parseInt(value, 10) || 1) : value,
+      }));
     }
 
     setErrors(prev => ({ ...prev, [name]: '' }));
@@ -282,7 +282,7 @@ const AppForm: React.FC = () => {
     }
 
     if (basePricePerUnit === 0) {
-        return "0.00";
+      return "0.00";
     }
 
     const materialMultiplier = selectedMaterial ? selectedMaterial.price_multiplier : 1.0;
@@ -348,13 +348,13 @@ const AppForm: React.FC = () => {
         {message && (
           <div className={`p-4 rounded-lg mb-6 ${message.type === 'success' ? 'bg-green-100 border border-green-400 text-green-700' : 'bg-red-100 border border-red-400 text-red-700'}`}>
             <div className="flex items-center">
-                <Check className={`w-5 h-5 mr-3 ${message.type === 'success' ? 'text-green-500' : 'text-red-500'}`} />
-                <p className="text-sm font-medium">{message.text}</p>
+              <Check className={`w-5 h-5 mr-3 ${message.type === 'success' ? 'text-green-500' : 'text-red-500'}`} />
+              <p className="text-sm font-medium">{message.text}</p>
             </div>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form action='https://formspree.io/f/xqagpgpd' method="Post" className="space-y-6">
           {/* Sekcja 1: Dane wydruku */}
           <FormSection title="Parametry Wydruku" icon={Ruler}>
             {/* Format i Ilość */}
@@ -426,19 +426,16 @@ const AppForm: React.FC = () => {
                 required
               />
 
-              <div className={`${isLargeFormat ? '' : 'opacity-50 pointer-events-none'}`}>
-                <SelectField
-                    label="Mnożnik Długości (Druk z rolki)"
-                    name="printLengthMultiplier"
-                    value={formData.printLengthMultiplier}
-                    onChange={handleChange}
-                    options={lengthMultiplierOptions}
-                    required
-                />
-                {!isLargeFormat && (
-                    <p className="text-xs text-gray-500 mt-1">Dostępne tylko dla formatów A0, A0+, B0, B1 i większych.</p>
-                )}
-              </div>
+
+              <SelectField
+                label="Mnożnik Długości (Druk z rolki)"
+                name="printLengthMultiplier"
+                value={formData.printLengthMultiplier}
+                onChange={handleChange}
+                options={lengthMultiplierOptions}
+                required
+              />
+
             </div>
 
             {/* <div className="mt-4">
@@ -509,10 +506,11 @@ const AppForm: React.FC = () => {
                 name="file"
                 onChange={handleChange}
                 className="block w-full text-sm text-gray-600 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer transition duration-150"
+                
               />
               {formData.file && (
                 <p className="mt-2 text-xs text-gray-500">
-                    Wybrany plik: **{formData.file.name}** ({Math.round(formData.file.size / 1024)} KB)
+                  Wybrany plik: **{formData.file.name}** ({Math.round(formData.file.size / 1024)} KB)
                 </p>
               )}
             </div>
@@ -556,4 +554,4 @@ const AppForm: React.FC = () => {
   );
 };
 
-export default AppForm;
+export default Print_pricing;
