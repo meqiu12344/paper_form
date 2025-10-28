@@ -53,11 +53,11 @@ interface ScanPriceItem {
     price_pln_netto: number; // Cena netto za 1 szt. (Baza za format)
 }
 
-// NEW INTERFACE dla kolorów
+// ZMIENIONY INTERFACE dla kolorów - teraz używa MULTIPLIER
 interface ColorItem {
     id: string;
     label: string;
-    price_pln_netto: number; // DODATKOWA opłata za kolor za 1 szt.
+    multiplier: number; // MNOŻNIK zamiast dopłaty
 }
 
 
@@ -73,10 +73,10 @@ const SCAN_FORMATS: ScanPriceItem[] = [
     { id: "A0_PLUS", label: "A0+", dimensions: "1292x914 mm", price_pln_netto: 10.80 },
 ];
 
-// Opcje koloru skanowania (opłata dodatkowa)
+// Opcje koloru skanowania (mnożnik ceny bazowej formatu)
 const COLOR_OPTIONS: ColorItem[] = [
-    { id: "MONO", label: "Czarno-biały", price_pln_netto: 0.00 }, // Domyślnie 0.00 PLN
-    { id: "COLOR", label: "Kolorowy", price_pln_netto: 1.30 },
+    { id: "MONO", label: "Czarno-biały", multiplier: 1.0 }, // Mnożnik 1.0 dla Czarno-białego
+    { id: "COLOR", label: "Kolorowy", multiplier: 1.3 }, // Mnożnik 1.3 dla Kolorowego
 ];
 
 
@@ -192,10 +192,11 @@ const Scan_pricing: React.FC = () => {
     const selectedColor = COLOR_OPTIONS.find(c => c.id === formData.colorOption);
 
     const formatBasePrice = selectedFormat ? selectedFormat.price_pln_netto : 0;
-    const colorSurcharge = selectedColor ? selectedColor.price_pln_netto : 0;
+    // ZMIANA LOGIKI: Użycie mnożnika
+    const colorMultiplier = selectedColor ? selectedColor.multiplier : 1.0; 
 
-    // Cena jednostkowa = Cena formatu + Dopłata za kolor
-    const unitPrice = formatBasePrice + colorSurcharge;
+    // Cena jednostkowa = Cena formatu * Mnożnik koloru
+    const unitPrice = formatBasePrice * colorMultiplier;
 
     // Całkowita cena netto: Cena jednostkowa * Ilość
     const totalPriceNetto = unitPrice * quantity;
@@ -253,6 +254,9 @@ const Scan_pricing: React.FC = () => {
           <p className="text-gray-500">
             Wybierz format i ilość, aby oszacować koszt skanowania.
           </p>
+          <div className="mt-4 inline-block p-2 bg-green-100 rounded-lg shadow-inner">
+             
+          </div>
         </header>
 
         {message && (
