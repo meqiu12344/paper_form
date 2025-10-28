@@ -7,10 +7,11 @@ import { Archive, Layers, Ruler, Mail, Phone, User, Send, Check } from "lucide-r
 interface ScanFormData {
   format: string;
   quantity: number;
+  colorOption: string; // NEW: Opcja koloru
   name: string;
   email: string;
   phone: string;
-  file: File | null; // Pole file
+  file: File | null; 
 }
 
 interface SubmissionMessage {
@@ -49,12 +50,20 @@ interface ScanPriceItem {
     id: string;
     label: string;
     dimensions: string; // Wymiar w mm
-    price_pln_netto: number; // Cena netto za 1 szt.
+    price_pln_netto: number; // Cena netto za 1 szt. (Baza za format)
+}
+
+// NEW INTERFACE dla kolorów
+interface ColorItem {
+    id: string;
+    label: string;
+    price_pln_netto: number; // DODATKOWA opłata za kolor za 1 szt.
 }
 
 
-// --- DANE (DATA - CENNIK SKANOWANIA Z OBRAZU) ---
+// --- DANE (DATA - CENNIK SKANOWANIA) ---
 
+// Cennik bazowy za format
 const SCAN_FORMATS: ScanPriceItem[] = [
     { id: "A4", label: "A4", dimensions: "297x210 mm", price_pln_netto: 0.20 },
     { id: "A3", label: "A3", dimensions: "420x297 mm", price_pln_netto: 0.40 },
@@ -62,6 +71,12 @@ const SCAN_FORMATS: ScanPriceItem[] = [
     { id: "A1", label: "A1", dimensions: "841x594 mm", price_pln_netto: 5.20 },
     { id: "A0", label: "A0", dimensions: "1189x841 mm", price_pln_netto: 9.80 },
     { id: "A0_PLUS", label: "A0+", dimensions: "1292x914 mm", price_pln_netto: 10.80 },
+];
+
+// Opcje koloru skanowania (opłata dodatkowa)
+const COLOR_OPTIONS: ColorItem[] = [
+    { id: "MONO", label: "Czarno-biały", price_pln_netto: 0.00 }, // Domyślnie 0.00 PLN
+    { id: "COLOR", label: "Kolorowy", price_pln_netto: 1.30 },
 ];
 
 
@@ -131,6 +146,7 @@ const Scan_pricing: React.FC = () => {
   const initialData: ScanFormData = {
     format: "A4",
     quantity: 1,
+    colorOption: "MONO", // Domyślnie Czarno-biały
     name: "",
     email: "",
     phone: "",
@@ -173,14 +189,31 @@ const Scan_pricing: React.FC = () => {
   const calculatePrice = useMemo(() => {
     const quantity = formData.quantity || 1;
     const selectedFormat = SCAN_FORMATS.find(f => f.id === formData.format);
+    const selectedColor = COLOR_OPTIONS.find(c => c.id === formData.colorOption);
 
-    const basePricePerUnit = selectedFormat ? selectedFormat.price_pln_netto : 0;
+    const formatBasePrice = selectedFormat ? selectedFormat.price_pln_netto : 0;
+    const colorSurcharge = selectedColor ? selectedColor.price_pln_netto : 0;
+
+    // Cena jednostkowa = Cena formatu + Dopłata za kolor
+    const unitPrice = formatBasePrice + colorSurcharge;
 
     // Całkowita cena netto: Cena jednostkowa * Ilość
-    const totalPriceNetto = basePricePerUnit * quantity;
+    const totalPriceNetto = unitPrice * quantity;
 
     return totalPriceNetto.toFixed(2);
-  }, [formData.format, formData.quantity]);
+  }, [formData.format, formData.quantity, formData.colorOption]);
+
+  const formatOptions = SCAN_FORMATS.map(f => ({ 
+      value: f.id, 
+      label: `${f.label} (${f.dimensions}) - ${f.price_pln_netto.toFixed(2)} PLN netto / szt. (Baza)` 
+  }));
+  
+  const colorOptions = COLOR_OPTIONS.map(c => ({
+      value: c.id,
+      label: c.label,
+  }));
+
+  const selectedFormatLabel = SCAN_FORMATS.find(f => f.id === formData.format)?.label || 'A4';
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -204,12 +237,6 @@ const Scan_pricing: React.FC = () => {
     }, 1500);
   };
 
-  const formatOptions = SCAN_FORMATS.map(f => ({ 
-      value: f.id, 
-      label: `${f.label} (${f.dimensions}) - ${f.price_pln_netto.toFixed(2)} PLN netto / szt.` 
-  }));
-  
-  const selectedFormatLabel = SCAN_FORMATS.find(f => f.id === formData.format)?.label || 'A4';
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-8 lg:p-12 font-sans">
@@ -226,8 +253,6 @@ const Scan_pricing: React.FC = () => {
           <p className="text-gray-500">
             Wybierz format i ilość, aby oszacować koszt skanowania.
           </p>
-          <div className="mt-4 inline-block p-2 bg-green-100 rounded-lg shadow-inner">
-                      </div>
         </header>
 
         {message && (
@@ -243,13 +268,21 @@ const Scan_pricing: React.FC = () => {
           
           {/* Sekcja 1: Parametry Skanowania */}
           <FormSection title="Parametry Skanowania" icon={Ruler}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <SelectField
                 label="Format Skanowania"
                 name="format"
                 value={formData.format}
                 onChange={handleChange}
                 options={formatOptions}
+                required
+              />
+              <SelectField
+                label="Opcja Koloru"
+                name="colorOption"
+                value={formData.colorOption}
+                onChange={handleChange}
+                options={colorOptions}
                 required
               />
               <InputField
