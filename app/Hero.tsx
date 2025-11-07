@@ -12,7 +12,7 @@ export default function Hero() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 1 }}
-      className="relative h-[100vh] flex items-center justify-center text-center text-white overflow-hidden"
+      className="relative h-[60vh] flex items-center justify-center text-center text-white overflow-hidden"
     >
       {/* --- Tło parallax --- */}
       <motion.div style={{ y }} className="absolute inset-0">
