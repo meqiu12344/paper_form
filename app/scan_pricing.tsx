@@ -268,7 +268,7 @@ const Scan_pricing: React.FC = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form action="https://submit-form.com/Cg0o9odNC" encType="mulitpart/form-data" method="Post" className="space-y-6">
           
           {/* Sekcja 1: Parametry Skanowania */}
           <FormSection title="Parametry Skanowania" icon={Ruler}>
