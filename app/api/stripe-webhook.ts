@@ -1,7 +1,6 @@
 // app/api/stripe-webhook/route.ts
 import { NextResponse } from "next/server";
-import Stripe from "stripe";
-import { addOrderToDatabase } from "@/lib/db"; // <- Twoja funkcja zapisująca rekord
+import Stripe from "stripe"; // <- Twoja funkcja zapisująca rekord
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -26,7 +25,6 @@ export async function POST(req: Request) {
 
     if (metadata) {
       const formData = JSON.parse(metadata.formData);
-      await addOrderToDatabase(formData);
     }
   }
 

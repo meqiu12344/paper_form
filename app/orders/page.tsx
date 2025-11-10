@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { ChevronDown, ChevronUp, FileText, CheckCircle, Clock } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient"; // ✅ import supabase
 
-// Aktualizacja interfejsu Order o wszystkie pola z bazy danych
 interface Order {
   id: number;
   createdAt: string;
@@ -25,7 +25,6 @@ interface Order {
   filePath?: string;
 }
 
-// Komponent dla pojedynczego wiersza zamówienia z możliwością rozwijania
 const OrderRow: React.FC<{ order: Order; markAsDone: (id: number) => void }> = ({ order, markAsDone }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const isPending = order.status === "PENDING";
@@ -33,9 +32,8 @@ const OrderRow: React.FC<{ order: Order; markAsDone: (id: number) => void }> = (
 
   return (
     <>
-      {/* Wiersz główny (zawsze widoczny) */}
-      <tr 
-        key={order.id} 
+      <tr
+        key={order.id}
         className={`border-b cursor-pointer transition duration-150 ${isExpanded ? 'bg-indigo-50 hover:bg-indigo-100' : 'hover:bg-gray-50'}`}
         onClick={() => setIsExpanded(!isExpanded)}
       >
@@ -55,13 +53,15 @@ const OrderRow: React.FC<{ order: Order; markAsDone: (id: number) => void }> = (
           {order.totalPrice.toFixed(2)} PLN
         </td>
         <td className="py-3 px-4 text-center">
-          <button onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }} className="p-1 text-gray-500 hover:text-indigo-600 transition">
+          <button
+            onClick={(e) => { e.stopPropagation(); setIsExpanded(!isExpanded); }}
+            className="p-1 text-gray-500 hover:text-indigo-600 transition"
+          >
             {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
           </button>
         </td>
       </tr>
 
-      {/* Wiersz rozszerzony (ukryty domyślnie) */}
       {isExpanded && (
         <tr className="bg-white border-b border-indigo-200">
           <td colSpan={6} className="p-4">
@@ -112,35 +112,48 @@ const OrderRow: React.FC<{ order: Order; markAsDone: (id: number) => void }> = (
 export default function PanelPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refresh, setRefresh] = useState(false);
 
+  // ✅ Pobieranie danych z Supabase
   useEffect(() => {
     async function loadOrders() {
       setLoading(true);
-      // Zakładam, że endpoint /api/orders zwraca wszystkie pola
-      const res = await fetch("/api/orders"); 
-      const data = await res.json();
-      setOrders(data);
+      const { data, error } = await supabase
+        .from("Order")
+        .select("*")
+        .order("createdAt");
+
+      console.log("Pobrane zamówienia:", data);
+      console.log("Błąd pobierania zamówień:", error);
+
+      if (error) {
+        console.error("Błąd pobierania zamówień:", error);
+      } else {
+        setOrders(data as Order[]);
+      }
       setLoading(false);
     }
-    loadOrders();
-  }, [refresh]);
 
+    loadOrders();
+  }, []);
+
+  // ✅ Aktualizacja statusu w Supabase
   async function markAsDone(id: number) {
     const confirmAction = confirm("Czy na pewno oznaczyć to zamówienie jako zrealizowane?");
     if (!confirmAction) return;
 
-    const res = await fetch(`/api/orders/${id}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "DONE" }),
-    });
+    const { error } = await supabase
+      .from("Order")
+      .update({ status: "DONE" })
+      .eq("id", id);
 
-    if (res.ok) {
-      alert("Zamówienie zarchiwizowane ✅");
-      setRefresh(!refresh);
-    } else {
+    if (error) {
       alert("Nie udało się zarchiwizować zamówienia ❌");
+      console.error(error);
+    } else {
+      alert("Zamówienie zarchiwizowane ✅");
+      setOrders((prev) =>
+        prev.map((o) => (o.id === id ? { ...o, status: "DONE" } : o))
+      );
     }
   }
 
@@ -157,7 +170,6 @@ export default function PanelPage() {
         Kliknij wiersz zamówienia, aby rozwinąć wszystkie szczegóły.
       </div>
 
-      {/* ZAMÓWIENIA PENDINC i DONE */}
       <section className="mb-10">
         <h2 className="text-xl font-semibold text-gray-700 mb-3">
           📝 Wszystkie zamówienia ({orders.length})
@@ -179,7 +191,6 @@ export default function PanelPage() {
                 </tr>
               </thead>
               <tbody>
-                {/* Łączę PENDING i DONE i sortuję, aby PENDING były na górze */}
                 {[...pendingOrders, ...doneOrders].map((o) => (
                   <OrderRow key={o.id} order={o} markAsDone={markAsDone} />
                 ))}
@@ -188,8 +199,6 @@ export default function PanelPage() {
           </div>
         )}
       </section>
-
-      {/* USUNĄŁEM DRUGĄ, ZDUPLIKOWANĄ SEKCJE ARCHIWUM, BO OBIE SĄ TERAZ NA JEDNEJ LIŚCIE */}
     </div>
   );
 }

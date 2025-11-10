@@ -1,77 +1,89 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+// ❌ Usuwamy import Prisma
+// import { prisma } from "@/lib/prisma"; 
+// ✅ Dodajemy import Supabase
+import { supabase } from "@/lib/supabaseClient"; 
+
 import fs from "fs";
 import path from "path";
 
-export const dynamic = "force-dynamic"; // żeby API działało zawsze w dev/edge
+export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    const formData = await req.formData();
+    const form = await req.formData();
 
-    // Pobranie pól tekstowych
-    const name = formData.get("name")?.toString() || "";
-    const email = formData.get("email")?.toString() || "";
-    const phone = formData.get("phone")?.toString() || "";
-    const format = formData.get("format")?.toString() || "";
-    const customWidth = formData.get("customWidth")?.toString() || null;
-    const customHeight = formData.get("customHeight")?.toString() || null;
-    const quantity = Number(formData.get("quantity")) || 1;
-    const material = formData.get("material")?.toString() || "";
-    const colorOption = formData.get("colorOption")?.toString() || "";
-    const printLengthMultiplier = formData.get("printLengthMultiplier")?.toString() || "";
-    const finishes = formData.get("finishes")?.toString() || "";
-    const totalPrice = Number(formData.get("totalPrice")) || 0;
+    const orderData = {
+      format: form.get("format") as string,
+      customWidth: form.get("customWidth") ? parseInt(form.get("customWidth") as string) : null,
+      customHeight: form.get("customHeight") ? parseInt(form.get("customHeight") as string) : null,
+      quantity: parseInt((form.get("quantity") as string) || "1"),
+      material: form.get("material") as string,
+      colorOption: form.get("colorOption") as string,
+      printLengthMultiplier: form.get("printLengthMultiplier") as string,
+      name: form.get("name") as string,
+      email: form.get("email") as string,
+      phone: (form.get("phone") as string) || null,
+      totalPrice: parseFloat((form.get("totalPrice") as string) || "0"),
+    };
 
-    // 🔹 Obsługa pliku
-    let fileName: string | null = null;
-    let filePath: string | null = null;
+    console.log(orderData);
+
+    // 📂 zapis pliku lokalnie (pozostawiamy bez zmian)
+    const uploadDir = path.join(process.cwd(), "public/uploads");
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
+    let filePath = null;
+    let fileName = null;
     let fileSizeKB: number | null = null;
 
-    const file = formData.get("file") as File | null;
-    if (file && file.name) {
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
+    const file = form.get("file") as File | null;
 
-      const uploadDir = path.join(process.cwd(), "public", "uploads");
-      if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+    if (file && file.size > 0) {
+      // ... (kod zapisu pliku bez zmian)
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const safeName = file.name.replace(/\s+/g, "_");
+      const storedFileName = `${Date.now()}_${safeName}`;
+      const fullPath = path.join(uploadDir, storedFileName);
 
-      fileName = `${Date.now()}_${file.name}`;
-      filePath = `/uploads/${fileName}`;
-      fileSizeKB = Math.round(buffer.byteLength / 1024);
+      fs.writeFileSync(fullPath, buffer);
 
-      fs.writeFileSync(path.join(uploadDir, fileName), buffer);
+      filePath = `/uploads/${storedFileName}`;
+      fileName = file.name;
+      fileSizeKB = Math.round(file.size / 1024); // store size in KB
     }
 
-    // 🔹 Zapis w bazie
-    const order = await prisma.order.create({
-      data: {
-        name,
-        email,
-        phone,
-        format,
-        customWidth,
-        customHeight,
-        quantity,
-        material,
-        colorOption,
-        printLengthMultiplier,
-        finishes,
-        totalPrice,
+    // 💾 Zapis do bazy Supabase
+    const dataToInsert = {
+        ...orderData,
+        filePath,
         fileName,
         fileSizeKB,
-        filePath,
-      },
-    });
+        // Upewnij się, że nazwy kolumn odpowiadają Twojej tabeli w Supabase
+    };
 
-    return NextResponse.json(order);
-  } catch (err: any) {
-    console.error(err);
-    return NextResponse.json({ error: "Błąd przy zapisie zamówienia" }, { status: 500 });
+    const { data: created, error } = await supabase
+        .from("orders") // Zmień na nazwę Twojej tabeli
+        .insert([dataToInsert])
+        .select(); // Dodaj .select() by uzyskać wstawiony rekord
+
+    if (error) {
+        console.error("❌ Supabase insert error:", error);
+        // Rzucamy błąd, by wpaść do bloku catch
+        throw new Error(`Supabase error: ${error.message}`); 
+    }
+
+    // Supabase .insert() z .select() zwraca tablicę w `data`
+    const createdOrder = created ? created[0] : null;
+
+    if (!createdOrder) {
+        throw new Error("Supabase did not return the created order.");
+    }
+    
+    return NextResponse.json({ success: true, orderId: createdOrder.id });
+  } catch (err) {
+    console.error("❌ API submit error:", err);
+    return NextResponse.json({ success: false, error: "Błąd serwera" }, { status: 500 });
   }
-}
-
-export async function GET() {
-  const orders = await prisma.order.findMany({ orderBy: { createdAt: "desc" } });
-  return NextResponse.json(orders);
 }
