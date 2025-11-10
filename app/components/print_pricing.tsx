@@ -312,29 +312,28 @@ const Print_pricing: React.FC = () => {
     try {
       const form = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
-        if (value !== null && value !== undefined) {
-          form.append(key, value as any);
-        }
+        if (value !== null && value !== undefined) form.append(key, value as any);
       });
       form.append("totalPrice", calculatePrice);
 
-      const res = await fetch("/api/orders", {
+      // 💾 Zapisujemy dane zamówienia lokalnie
+      sessionStorage.setItem("orderFormData", JSON.stringify(Object.fromEntries(form.entries())));
+
+      const res = await fetch("/api/create-checkout-session", {
         method: "POST",
         body: form,
       });
 
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Błąd tworzenia płatności.");
 
-      if (!res.ok) throw new Error(data.error || "Błąd podczas zapisu zamówienia.");
-
-      setMessage({ type: "success", text: "Zamówienie zapisane w bazie!" });
+      window.location.href = data.url;
     } catch (err: any) {
       setMessage({ type: "error", text: err.message });
     } finally {
       setIsSubmitting(false);
     }
   };
-
 
 
   const materialOptions = MATERIALS.map(m => ({ value: m.id, label: m.label }));

@@ -1,101 +1,73 @@
-// app/api/submit/route.ts
 import { NextResponse } from "next/server";
-import { IncomingMessage } from "http";
-import formidable from "formidable";
+import { prisma } from "@/lib/prisma";
 import fs from "fs";
 import path from "path";
-import { createClient } from "@supabase/supabase-js";
-import prisma from "@/lib/prisma";
 
-export const runtime = "nodejs"; // wymagane dla formidable
-
-// Helper do parsowania form-data
-export async function parseForm(req: Request) {
-  return new Promise<{ fields: any; files: any }>((resolve, reject) => {
-    const nodeReq = req as unknown as IncomingMessage;
-    const form = formidable({ multiples: false, maxFileSize: 10 * 1024 * 1024 }); // 10MB
-
-    form.parse(nodeReq, (err, fields, files) => {
-      if (err) return reject(err);
-      resolve({ fields, files });
-    });
-  });
-}
+export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    const { fields, files } = await parseForm(req);
+    const form = await req.formData();
 
-    // Ustawienie Supabase (serwerowy klient)
-    const SUPA_URL = process.env.SUPABASE_URL!;
-    const SUPA_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    const supa = createClient(SUPA_URL, SUPA_KEY, { auth: { persistSession: false }});
-
-    // Przygotuj dane
     const orderData = {
-      format: fields.format as string,
-      customWidth: fields.customWidth ? parseInt(fields.customWidth) : null,
-      customHeight: fields.customHeight ? parseInt(fields.customHeight) : null,
-      quantity: parseInt(fields.quantity || "1"),
-      material: fields.material as string,
-      colorOption: fields.colorOption as string,
-      printLengthMult: fields.printLengthMultiplier as string,
-      finishes: fields.finishes ? (Array.isArray(fields.finishes) ? fields.finishes : [fields.finishes]) : [],
-      name: fields.name as string,
-      email: fields.email as string,
-      phone: fields.phone as string || null,
-      calculated_price: fields.calculatedPrice as string || "0.00",
+      format: form.get("format") as string,
+      customWidth: form.get("customWidth") ? parseInt(form.get("customWidth") as string) : null,
+      customHeight: form.get("customHeight") ? parseInt(form.get("customHeight") as string) : null,
+      quantity: parseInt((form.get("quantity") as string) || "1"),
+      material: form.get("material") as string,
+      colorOption: form.get("colorOption") as string,
+
+      // ✅ Poprawione pole zgodne z Prisma schema
+      printLengthMultiplier: form.get("printLengthMultiplier") as string,
+
+      // Usuwamy pustą wartość jeśli jest np. finishes: [""]
+      // finishes: (form.getAll("finishes") as string[]).filter(f => f.trim() !== ""),
+
+      name: form.get("name") as string,
+      email: form.get("email") as string,
+      phone: (form.get("phone") as string) || null,
+      totalPrice: parseFloat((form.get("totalPrice") as string) || "0"),
     };
 
-    // Upload pliku (jeśli jest)
-    let file_path = null;
-    let file_name = null;
-    let file_size = null;
+    console.log(orderData);
 
-    if (files && files.file) {
-      const f = files.file as formidable.File;
-      const fileBuffer = fs.readFileSync(f.filepath);
-      const ext = path.extname(f.originalFilename || f.newFilename || "upload");
-      const key = `orders/${Date.now()}_${(f.originalFilename || f.newFilename).replace(/\s+/g,'_')}`;
+    // 📂 zapis pliku lokalnie
+    const uploadDir = path.join(process.cwd(), "public/uploads");
+    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-      const { data, error: upErr } = await supa.storage
-        .from("uploads")
-        .upload(key, fileBuffer, { upsert: false, contentType: f.mimetype || undefined });
+    let filePath = null;
+    let fileName = null;
+    let fileSizeKB: number | null = null;
 
-      if (upErr) {
-        console.error("Supabase upload error:", upErr);
-        return NextResponse.json({ error: "Błąd uploadu pliku" }, { status: 500 });
-      }
+    const file = form.get("file") as File | null;
 
-      file_path = data?.path || key;
-      file_name = f.originalFilename || "file";
-      file_size = f.size || null;
+    if (file && file.size > 0) {
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const safeName = file.name.replace(/\s+/g, "_");
+      const storedFileName = `${Date.now()}_${safeName}`;
+      const fullPath = path.join(uploadDir, storedFileName);
+
+      fs.writeFileSync(fullPath, buffer);
+
+      filePath = `/uploads/${storedFileName}`;
+      fileName = file.name;
+      fileSizeKB = Math.round(file.size / 1024); // store size in KB
     }
 
-    // Zapis do bazy (Prisma)
+    // 💾 Zapis do bazy
     const created = await prisma.order.create({
       data: {
-        format: orderData.format,
-        customWidth: orderData.customWidth,
-        customHeight: orderData.customHeight,
-        quantity: orderData.quantity,
-        material: orderData.material,
-        colorOption: orderData.colorOption,
-        printLengthMult: orderData.printLengthMult,
-        finishes: orderData.finishes,
-        name: orderData.name,
-        email: orderData.email,
-        phone: orderData.phone,
-        file_path,
-        file_name,
-        file_size,
-        calculated_price: orderData.calculated_price,
-      }
+        ...orderData,
+        filePath,
+        fileName,
+        fileSizeKB,
+      },
     });
 
-    return NextResponse.json({ message: "OK", orderId: created.id }, { status: 200 });
+    return NextResponse.json({ success: true, orderId: created.id });
   } catch (err) {
-    console.error("API submit error:", err);
-    return NextResponse.json({ error: "Wystąpił błąd serwera." }, { status: 500 });
+    console.error("❌ API submit error:", err);
+    return NextResponse.json({ success: false, error: "Błąd serwera" }, { status: 500 });
   }
 }
