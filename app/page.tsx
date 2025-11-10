@@ -1,8 +1,8 @@
-import Hero from "./Hero"; // klient
-import LoadingScreen from "./LoadingScreen"; // klient
-import Why_us from "./why_us";
-import Print_pricing from "./print_pricing";
-import Scan_pricing from "./scan_pricing";
+import Hero from "./components/Hero"; // klient
+import LoadingScreen from "./components/LoadingScreen"; // klient
+import Why_us from "./components/why_us";
+import Print_pricing from "./components/print_pricing";
+import Scan_pricing from "./components/scan_pricing";
 
 export const metadata = {
   title: "Drukarnia XYZ | Druk Wielkoformatowy i Reklamowy na Zamówienie",

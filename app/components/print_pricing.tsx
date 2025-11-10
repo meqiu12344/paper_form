@@ -298,27 +298,44 @@ const Print_pricing: React.FC = () => {
     return totalPriceNetto.toFixed(2);
   }, [formData.format, formData.customWidth, formData.customHeight, formData.quantity, formData.material, formData.printLengthMultiplier, formData.colorOption]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
 
     if (!validate()) {
-      setMessage({ type: 'error', text: "Proszę poprawić błędy w formularzu przed wysłaniem." });
+      setMessage({ type: "error", text: "Proszę poprawić błędy w formularzu." });
       return;
     }
 
     setIsSubmitting(true);
 
-    // Symulacja wysyłki danych do API/Serwera
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setMessage({
-        type: 'success',
-        text: `Zamówienie zostało pomyślnie wysłane. Szacowany koszt netto: ${calculatePrice} PLN. Skontaktujemy się w celu potwierdzenia.`,
+    try {
+      const form = new FormData();
+      Object.entries(formData).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          form.append(key, value as any);
+        }
       });
-      // setFormData(initialData); // Opcjonalne: resetowanie formularza
-    }, 1500);
+      form.append("totalPrice", calculatePrice);
+
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        body: form,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || "Błąd podczas zapisu zamówienia.");
+
+      setMessage({ type: "success", text: "Zamówienie zapisane w bazie!" });
+    } catch (err: any) {
+      setMessage({ type: "error", text: err.message });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+
 
   const materialOptions = MATERIALS.map(m => ({ value: m.id, label: m.label }));
   const lengthMultiplierOptions = LENGTH_MULTIPLIERS.map(l => ({ value: l.id, label: l.label }));
@@ -354,7 +371,7 @@ const Print_pricing: React.FC = () => {
           </div>
         )}
 
-        <form action='https://formspree.io/f/xqagpgpd' method="Post" className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {/* Sekcja 1: Dane wydruku */}
           <FormSection title="Parametry Wydruku" icon={Ruler}>
             {/* Format i Ilość */}
