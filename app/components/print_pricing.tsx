@@ -2,6 +2,11 @@
 
 import React, { useState, useMemo } from "react";
 import { Archive, Layers, Ruler, Mail, Phone, User, Send, Check } from "lucide-react";
+// Usunięto import createClient z Supabase, ponieważ używamy go tylko w route.ts i verify-payment.ts
+// import { createClient } from "@supabase/supabase-js"; 
+
+// Stała dla VAT (używamy 23% dla polskiego standardu)
+const VAT_RATE = 0.23;
 
 // --- INTERFACES ---
 interface FormData {
@@ -79,6 +84,13 @@ interface ColorItem {
   multiplier: number;
 }
 
+interface PriceDetails {
+    netto: number;
+    vat: number;
+    brutto: number;
+    nettoDisplay: string;
+}
+
 // --- DANE (CENNIK Z CSV) ---
 
 // Zaktualizowany cennik bazowy dla formatów A i B
@@ -120,7 +132,7 @@ const LENGTH_MULTIPLIERS: LengthMultiplierItem[] = [
 // NEW: Lista kolorów z mnożnikami cenowymi
 const COLOR_OPTIONS: ColorItem[] = [
   { id: "1", label: "DRUK CZARNO-BIAŁY, DO 10% POW. ZADRUKU", multiplier: 1.0 },
-  { id: "2", label: "DRUK CZARNO-BIAŁY, DO 50% POW. ZADRUKU", multiplier: 2.0 }, // Lekko zwiększam mnożnik względem 1.0 dla opcji Monochromatycznej
+  { id: "2", label: "DRUK CZARNO-BIAŁY, DO 50% POW. ZADRUKU", multiplier: 2.0 },
   { id: "3", label: "DRUK CZARNO-BIAŁY, PONAD 50% POW. ZADRUKU", multiplier: 3.0 },
   { id: "4", label: "DRUK KOLOROWY, DO 10% POW. ZADRUKU", multiplier: 2.0 },
   { id: "5", label: "DRUK KOLOROWY, DO 50% POW. ZADRUKU", multiplier: 3.0 },
@@ -196,7 +208,7 @@ const Print_pricing: React.FC = () => {
     customHeight: "",
     quantity: 1,
     material: "STANDARD_80",
-    colorOption: "MONO", // Default value
+    colorOption: "1", 
     printLengthMultiplier: "x1",
     finishes: [],
     name: "",
@@ -215,6 +227,13 @@ const Print_pricing: React.FC = () => {
 
     if (type === 'file') {
       const file = (e.target as HTMLInputElement).files?.[0] || null;
+      // Prosta walidacja rozmiaru pliku (max 10MB)
+      if (file && file.size > 10 * 1024 * 1024) {
+          setErrors(prev => ({ ...prev, file: 'Plik jest za duży (max 10MB).' }));
+          setFormData(prev => ({ ...prev, [name]: null }));
+          setMessage({ type: 'error', text: 'Plik jest za duży (max 10MB). Proszę załącz mniejszy plik.' });
+          return;
+      }
       setFormData(prev => ({ ...prev, [name]: file }));
     } else {
       setFormData(prev => ({
@@ -244,93 +263,144 @@ const Print_pricing: React.FC = () => {
       newErrors.email = "Wprowadź poprawny adres e-mail.";
     }
     if (formData.format === 'CUSTOM') {
-      if (!formData.customWidth || parseInt(formData.customWidth, 10) <= 0) newErrors.customWidth = "Podaj poprawną szerokość.";
-      if (!formData.customHeight || parseInt(formData.customHeight, 10) <= 0) newErrors.customHeight = "Podaj poprawną wysokość.";
+      if (!formData.customWidth || parseFloat(formData.customWidth) <= 0) newErrors.customWidth = "Podaj poprawną szerokość (mm).";
+      if (!formData.customHeight || parseFloat(formData.customHeight) <= 0) newErrors.customHeight = "Podaj poprawną wysokość (mm).";
     }
     if (formData.quantity < 1) newErrors.quantity = "Ilość musi być większa niż 0.";
-    setErrors(newErrors);
+    // Walidacja, czy wybrano plik (jeśli jest to wymagane)
+    // if (!formData.file) newErrors.file = "Załącz plik do wydruku.";
+
+    setErrors(prev => ({ ...prev, ...newErrors }));
     return Object.keys(newErrors).length === 0;
   };
 
-  const calculatePrice = useMemo(() => {
+  // Zaktualizowana funkcja obliczająca cenę, zwracająca obiekt PriceDetails
+  const calculatePrice = useMemo<PriceDetails>(() => {
     const quantity = formData.quantity || 1;
     const selectedFormat = FORMATS.find(f => f.id === formData.format);
     const selectedMaterial = MATERIALS.find(m => m.id === formData.material);
     const selectedLengthMultiplier = LENGTH_MULTIPLIERS.find(l => l.id === formData.printLengthMultiplier);
-    const selectedColorOption = COLOR_OPTIONS.find(c => c.id === formData.colorOption); // NEW: Color option
+    const selectedColorOption = COLOR_OPTIONS.find(c => c.id === formData.colorOption);
 
     let basePricePerUnit = 0;
 
     if (selectedFormat && selectedFormat.id !== 'CUSTOM') {
       basePricePerUnit = selectedFormat.price_pln_netto;
     } else if (formData.format === 'CUSTOM' && formData.customWidth && formData.customHeight) {
-      // PROSTA HEURYSTYKA DLA CENY WŁASNEJ: OBLICZENIE CENY NA PODSTAWIE STOSUNKU POWIERZCHNI DO CENY A4
-      const customWidth = parseFloat(formData.customWidth) / 1000; // m
-      const customHeight = parseFloat(formData.customHeight) / 1000; // m
-      const customArea = customWidth * customHeight; // m2
+      const customWidth = parseFloat(formData.customWidth) / 1000;
+      const customHeight = parseFloat(formData.customHeight) / 1000;
+      const customArea = customWidth * customHeight;
 
-      // Używamy A0 jako bazy dla dużych formatów (A0 ma 1.0 m2 i kosztuje 12.20 PLN netto)
-      const A0_AREA = FORMATS.find(f => f.id === 'A0')!.width * FORMATS.find(f => f.id === 'A0')!.height / 1000000; // ~1.0 m2
-      const A0_PRICE = FORMATS.find(f => f.id === 'A0')!.price_pln_netto;
-
-      // Cena za m2 na podstawie A0
-      const pricePerM2 = A0_PRICE / A0_AREA; // ~12.20 PLN/m2
+      const A0_FORMAT = FORMATS.find(f => f.id === 'A0')!;
+      const A0_AREA = A0_FORMAT.width * A0_FORMAT.height / 1000000;
+      const A0_PRICE = A0_FORMAT.price_pln_netto;
+      const pricePerM2 = A0_PRICE / A0_AREA; 
+      
       basePricePerUnit = customArea * pricePerM2;
-
-      // Upewnienie się, że minimalna cena to cena A4
       basePricePerUnit = Math.max(basePricePerUnit, FORMATS.find(f => f.id === 'A4')!.price_pln_netto);
     }
+    
+    // Ustawienie minimalnej ceny na cenę A4 nawet w przypadku małych niestandardowych
+    basePricePerUnit = Math.max(basePricePerUnit, FORMATS.find(f => f.id === 'A4')!.price_pln_netto);
 
-    if (basePricePerUnit === 0) {
-      return "0.00";
-    }
 
     const materialMultiplier = selectedMaterial ? selectedMaterial.price_multiplier : 1.0;
     const lengthMultiplier = selectedLengthMultiplier ? selectedLengthMultiplier.multiplier : 1.0;
-    const colorMultiplier = selectedColorOption ? selectedColorOption.multiplier : 1.0; // NEW: Color multiplier
+    const colorMultiplier = selectedColorOption ? selectedColorOption.multiplier : 1.0;
 
-    // Cena jednostkowa = Cena bazowa * Mnożnik materiału * Mnożnik długości * Mnożnik Koloru
-    const unitPrice = basePricePerUnit * materialMultiplier * lengthMultiplier * colorMultiplier;
+    const unitPriceNetto = basePricePerUnit * materialMultiplier * lengthMultiplier * colorMultiplier;
 
     // Całkowita cena netto
-    const totalPriceNetto = unitPrice * quantity;
+    const totalPriceNetto = unitPriceNetto * quantity;
+    const vatAmount = totalPriceNetto * VAT_RATE;
+    const totalPriceBrutto = totalPriceNetto + vatAmount;
 
-    return totalPriceNetto.toFixed(2);
+    return {
+        netto: totalPriceNetto,
+        vat: vatAmount,
+        brutto: totalPriceBrutto,
+        nettoDisplay: totalPriceNetto.toFixed(2),
+    };
   }, [formData.format, formData.customWidth, formData.customHeight, formData.quantity, formData.material, formData.printLengthMultiplier, formData.colorOption]);
 
+
+  // FUNKCJA OBSŁUGI SUBMITU I PŁATNOŚCI
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
-
-    if (!validate()) {
-      setMessage({ type: "error", text: "Proszę poprawić błędy w formularzu." });
+    if (!validate() || errors.file) { // Sprawdzenie ogólnej walidacji i błędu pliku
+      setMessage({ type: 'error', text: 'Proszę popraw błędy w formularzu.' });
       return;
     }
 
     setIsSubmitting(true);
 
+    let filePath = null;
+    if (formData.file) {
+        try {
+            // Użyj obiektu FormData do wysłania pliku
+            const fileData = new FormData();
+            fileData.append('file', formData.file);
+
+            // Wywołaj nowy endpoint API odpowiedzialny za tymczasowy upload
+            const uploadResponse = await fetch('/api/upload-temp', {
+                method: 'POST',
+                body: fileData, // Nie ustawiamy Content-Type, przeglądarka zrobi to automatycznie
+            });
+            const uploadResult = await uploadResponse.json();
+
+            if (uploadResult.filePath) {
+                filePath = uploadResult.filePath;
+            } else {
+                throw new Error(uploadResult.error || "Błąd tymczasowego przesyłania pliku.");
+            }
+        } catch (uploadError: any) {
+            console.error("❌ Błąd przesyłania pliku:", uploadError);
+            setMessage({ type: 'error', text: `Błąd przesyłania pliku: ${uploadError.message}.` });
+            setIsSubmitting(false);
+            return; 
+        }
+    }
+    
+    const { netto, brutto } = calculatePrice;
+    const priceInCents = Math.round(brutto * 100);
+    const calculatedPriceNetto = netto;
+    const fileName = formData.file?.name || 'Brak pliku';
+    const fileSizeKB = formData.file ? Math.round(formData.file.size / 1024) : 0;
+    
+    // UWAGA: Przesłanie pliku (formData.file) musi odbyć się osobnym żądaniem po pomyślnej płatności
+    // lub za pomocą biblioteki Storage (np. Supabase Storage)
+
     try {
-      const form = new FormData();
-      Object.entries(formData).forEach(([key, value]) => {
-        if (value !== null && value !== undefined) form.append(key, value as any);
+      // 1. Wywołaj API, które zapisze zamówienie do DB i zainicjuje sesję Stripe
+      const response = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          formData: formData, // Wszystkie dane formularza do zapisu
+          priceInCents: priceInCents, // Cena brutto w groszach do Stripe
+          calculatedPriceNetto: calculatedPriceNetto, // Cena netto do bazy danych
+          fileName: fileName,
+          fileSizeKB: fileSizeKB,
+          filePath: filePath,
+        }),
       });
-      form.append("totalPrice", calculatePrice);
 
-      // 💾 Zapisujemy dane zamówienia lokalnie
-      sessionStorage.setItem("orderFormData", JSON.stringify(Object.fromEntries(form.entries())));
+      const data = await response.json();
 
-      const res = await fetch("/api/create-checkout-session", {
-        method: "POST",
-        body: form,
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Błąd tworzenia płatności.");
-
-      window.location.href = data.url;
-    } catch (err: any) {
-      setMessage({ type: "error", text: err.message });
-    } finally {
+      if (data.url) {
+        // 2. Przekierowanie do sesji Stripe Checkout
+        window.location.href = data.url;
+      } else if (data.error) {
+        throw new Error(data.error);
+      } else {
+        throw new Error("Nieznany błąd podczas inicjowania płatności.");
+      }
+    } catch (error: any) {
+      console.error("❌ Błąd płatności:", error);
+      setMessage({ type: 'error', text: `Błąd podczas inicjowania płatności: ${error.message}. Spróbuj ponownie.` });
       setIsSubmitting(false);
     }
   };
@@ -338,10 +408,8 @@ const Print_pricing: React.FC = () => {
 
   const materialOptions = MATERIALS.map(m => ({ value: m.id, label: m.label }));
   const lengthMultiplierOptions = LENGTH_MULTIPLIERS.map(l => ({ value: l.id, label: l.label }));
-  const colorOptions = COLOR_OPTIONS.map(c => ({ value: c.id, label: c.label })); // NEW: Color options
-
-  // Sprawdzamy, czy wybrany format to duży format (A0, A0+, B0, B1) aby umożliwić wybór mnożnika długości
-  const isLargeFormat = ['A0', 'A0_PLUS', 'B0', 'B1'].includes(formData.format);
+  const colorOptions = COLOR_OPTIONS.map(c => ({ value: c.id, label: c.label }));
+  
   const isCustomFormat = formData.format === 'CUSTOM';
 
   return (
@@ -370,7 +438,7 @@ const Print_pricing: React.FC = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form className="space-y-6" onSubmit={handleSubmit}>
           {/* Sekcja 1: Dane wydruku */}
           <FormSection title="Parametry Wydruku" icon={Ruler}>
             {/* Format i Ilość */}
@@ -454,26 +522,7 @@ const Print_pricing: React.FC = () => {
 
             </div>
 
-            {/* <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Uszlachetnienie / Wykończenie (opcjonalnie)
-                </label>
-                <div className="flex flex-wrap gap-4">
-                    {["Laminowanie Mat", "Laminowanie Błysk", "Oprawa"].map(finish => (
-                        <label key={finish} className="inline-flex items-center">
-                            <input
-                                type="checkbox"
-                                name="finishes"
-                                value={finish}
-                                checked={formData.finishes.includes(finish)}
-                                onChange={handleCheckboxChange}
-                                className="form-checkbox h-5 w-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 transition duration-150"
-                            />
-                            <span className="ml-2 text-sm text-gray-700">{finish}</span>
-                        </label>
-                    ))}
-                </div>
-            </div> */}
+             {/* Sekcja Wykończenia (zakomentowana) */}
 
           </FormSection>
 
@@ -524,11 +573,12 @@ const Print_pricing: React.FC = () => {
                 className="block w-full text-sm text-gray-600 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer transition duration-150"
                 
               />
-              {formData.file && (
+              {formData.file && !errors.file && (
                 <p className="mt-2 text-xs text-gray-500">
                   Wybrany plik: **{formData.file.name}** ({Math.round(formData.file.size / 1024)} KB)
                 </p>
               )}
+              {errors.file && <p className="mt-1 text-sm text-red-600">{errors.file}</p>}
             </div>
           </FormSection>
 
@@ -536,30 +586,30 @@ const Print_pricing: React.FC = () => {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t pt-6 pb-4">
             <div className="text-center sm:text-left">
               <p className="text-gray-500 text-sm uppercase font-semibold">
-                Szacowana cena netto:
+                Szacowana cena brutto:
               </p>
               <p className="text-4xl font-extrabold text-indigo-700">
-                {calculatePrice} PLN
+                {calculatePrice.brutto.toFixed(2)} PLN
               </p>
               <p className="text-gray-400 text-xs mt-1">
-                + obowiązujący podatek VAT
+                Netto: {calculatePrice.nettoDisplay} PLN | VAT (23%): {calculatePrice.vat.toFixed(2)} PLN
               </p>
             </div>
 
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3 text-lg font-semibold rounded-full text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-500/50 disabled:opacity-50 transition duration-200 shadow-xl"
+              disabled={isSubmitting || Object.keys(errors).length > 0}
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3 text-lg font-semibold rounded-full text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-500/50 transition duration-200 shadow-xl"
             >
               {isSubmitting ? (
                 <>
                   <Archive className="w-5 h-5 animate-spin" />
-                  Wysyłanie...
+                  Przekierowanie do płatności...
                 </>
               ) : (
                 <>
                   <Send className="w-5 h-5" />
-                  Złóż zamówienie
+                  Złóż zamówienie i zapłać
                 </>
               )}
             </button>
