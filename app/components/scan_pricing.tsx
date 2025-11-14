@@ -3,15 +3,27 @@
 import React, { useState, useMemo } from "react";
 import { Archive, Layers, Ruler, Mail, Phone, User, Send, Check } from "lucide-react";
 
+
+const VAT_RATE = 0.23;
 // --- INTERFEJSY (INTERFACES) ---
 interface ScanFormData {
   format: string;
   quantity: number;
-  colorOption: string; // NEW: Opcja koloru
+  colorOption: string; // ID opcji koloru
   name: string;
   email: string;
   phone: string;
-  file: File | null; 
+  file: File | null;
+  NIP: string;
+  REGON: string;
+  TYPE: string;
+
+  // Pola Specyficzne dla 'FormData' (opcjonalne w ogólnym kontekście)
+  customWidth?: string; 
+  customHeight?: string;
+  material?: string; // ID materiału/nośnika
+  printLengthMultiplier?: string; // Mnożnik dla wydruku z rolki
+  finishes?: string[];
 }
 
 interface SubmissionMessage {
@@ -60,11 +72,17 @@ interface ColorItem {
     multiplier: number; // MNOŻNIK zamiast dopłaty
 }
 
+interface PriceDetails {
+    netto: number;
+    vat: number;
+    brutto: number;
+    nettoDisplay: string;
+}
 
 // --- DANE (DATA - CENNIK SKANOWANIA) ---
 
 // Cennik bazowy za format
-const SCAN_FORMATS: ScanPriceItem[] = [
+const FORMATS: ScanPriceItem[] = [
     { id: "A4", label: "A4", dimensions: "297x210 mm", price_pln_netto: 0.20 },
     { id: "A3", label: "A3", dimensions: "420x297 mm", price_pln_netto: 0.40 },
     { id: "A2", label: "A2", dimensions: "594x420 mm", price_pln_netto: 2.60 },
@@ -145,12 +163,20 @@ const SelectField: React.FC<SelectFieldProps> = ({ label, name, value, onChange,
 const Scan_pricing: React.FC = () => {
   const initialData: ScanFormData = {
     format: "A4",
+    customWidth: "",
+    customHeight: "",
     quantity: 1,
-    colorOption: "MONO", // Domyślnie Czarno-biały
+    material: "STANDARD_80",
+    colorOption: "1", 
+    printLengthMultiplier: "x1",
+    finishes: [],
     name: "",
     email: "",
     phone: "",
     file: null,
+    NIP: "",
+    REGON: "",
+    TYPE: "SCAN",
   };
 
   const [formData, setFormData] = useState<ScanFormData>(initialData);
@@ -186,56 +212,124 @@ const Scan_pricing: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const calculatePrice = useMemo(() => {
-    const quantity = formData.quantity || 1;
-    const selectedFormat = SCAN_FORMATS.find(f => f.id === formData.format);
-    const selectedColor = COLOR_OPTIONS.find(c => c.id === formData.colorOption);
-
-    const formatBasePrice = selectedFormat ? selectedFormat.price_pln_netto : 0;
-    // ZMIANA LOGIKI: Użycie mnożnika
-    const colorMultiplier = selectedColor ? selectedColor.multiplier : 1.0; 
-
-    // Cena jednostkowa = Cena formatu * Mnożnik koloru
-    const unitPrice = formatBasePrice * colorMultiplier;
-
-    // Całkowita cena netto: Cena jednostkowa * Ilość
-    const totalPriceNetto = unitPrice * quantity;
-
-    return totalPriceNetto.toFixed(2);
-  }, [formData.format, formData.quantity, formData.colorOption]);
-
-  const formatOptions = SCAN_FORMATS.map(f => ({ 
-      value: f.id, 
-      label: `${f.label} (${f.dimensions}) - ${f.price_pln_netto.toFixed(2)} PLN netto / szt. (Baza)` 
-  }));
+  const calculatePrice = useMemo<PriceDetails>(() => {
+      const quantity = formData.quantity || 1;
+      const selectedFormat = FORMATS.find(f => f.id === formData.format);
+      const selectedColorOption = COLOR_OPTIONS.find(c => c.id === formData.colorOption);
   
-  const colorOptions = COLOR_OPTIONS.map(c => ({
-      value: c.id,
-      label: c.label,
-  }));
-
-  const selectedFormatLabel = SCAN_FORMATS.find(f => f.id === formData.format)?.label || 'A4';
-
-  const handleSubmit = (e: React.FormEvent) => {
+      let basePricePerUnit = 0;
+  
+      if (selectedFormat && selectedFormat.id !== 'CUSTOM') {
+        basePricePerUnit = selectedFormat.price_pln_netto;
+      } else if (formData.format === 'CUSTOM' && formData.customWidth && formData.customHeight) {
+        const customWidth = parseFloat(formData.customWidth) / 1000;
+        const customHeight = parseFloat(formData.customHeight) / 1000;
+        const customArea = customWidth * customHeight;
+  
+        const A0_FORMAT = FORMATS.find(f => f.id === 'A0')!;
+        const A0_PRICE = A0_FORMAT.price_pln_netto;
+        
+        basePricePerUnit = Math.max(basePricePerUnit, FORMATS.find(f => f.id === 'A4')!.price_pln_netto);
+      }
+      
+      // Ustawienie minimalnej ceny na cenę A4 nawet w przypadku małych niestandardowych
+      basePricePerUnit = Math.max(basePricePerUnit, FORMATS.find(f => f.id === 'A4')!.price_pln_netto);
+  
+      const colorMultiplier = selectedColorOption ? selectedColorOption.multiplier : 1.0;
+  
+      const unitPriceNetto = basePricePerUnit * colorMultiplier;
+  
+      // Całkowita cena netto
+      const totalPriceNetto = unitPriceNetto * quantity;
+      const vatAmount = totalPriceNetto * VAT_RATE;
+      const totalPriceBrutto = totalPriceNetto + vatAmount;
+  
+      return {
+          netto: totalPriceNetto,
+          vat: vatAmount,
+          brutto: totalPriceBrutto,
+          nettoDisplay: totalPriceNetto.toFixed(2),
+      };
+    }, [formData.format, formData.customWidth, formData.customHeight, formData.quantity, formData.material, formData.printLengthMultiplier, formData.colorOption]);
+  
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
-
-    if (!validate()) {
-      setMessage({ type: 'error', text: "Proszę poprawić błędy w formularzu przed wysłaniem." });
+    if (!validate() || errors.file) { // Sprawdzenie ogólnej walidacji i błędu pliku
+      setMessage({ type: 'error', text: 'Proszę popraw błędy w formularzu.' });
       return;
     }
-
+  
     setIsSubmitting(true);
+  
+    let filePath = null;
+    if (formData.file) {
+      try {
+          // Użyj obiektu FormData do wysłania pliku
+          const fileData = new FormData();
+          fileData.append('file', formData.file);
+  
+              // Wywołaj nowy endpoint API odpowiedzialny za tymczasowy upload
+          const uploadResponse = await fetch('/api/upload-temp', {
+              method: 'POST',
+              body: fileData, // Nie ustawiamy Content-Type, przeglądarka zrobi to automatycznie
+          });
+          const uploadResult = await uploadResponse.json();
+  
+          if (uploadResult.filePath) {
+              filePath = uploadResult.filePath;
+          } else {
+              throw new Error(uploadResult.error || "Błąd tymczasowego przesyłania pliku.");
+          }
+      } catch (uploadError: any) {
+          console.error("❌ Błąd przesyłania pliku:", uploadError);
+          setMessage({ type: 'error', text: `Błąd przesyłania pliku: ${uploadError.message}.` });
+          setIsSubmitting(false);
+          return; 
+      }
+    }
 
-    // Symulacja wysyłki danych do API/Serwera
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setMessage({
-        type: 'success',
-        text: `Zamówienie na skanowanie zostało pomyślnie wysłane. Szacowany koszt netto: ${calculatePrice} PLN. Skontaktujemy się w celu potwierdzenia.`,
+    const { netto, brutto } = calculatePrice;
+    const priceInCents = Math.round(brutto * 100);
+    const calculatedPriceNetto = netto;
+    const fileName = formData.file?.name || 'Brak pliku';
+    const fileSizeKB = formData.file ? Math.round(formData.file.size / 1024) : 0;
+
+    // Przygotuj i wyślij zamówienie (możesz dostosować endpoint oraz payload)
+    try {
+      // 1. Wywołaj API, które zapisze zamówienie do DB i zainicjuje sesję Stripe
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          formData: formData, // Wszystkie dane formularza do zapisu
+          priceInCents: priceInCents, // Cena brutto w groszach do Stripe
+          calculatedPriceNetto: calculatedPriceNetto, // Cena netto do bazy danych
+          fileName: fileName,
+          fileSizeKB: fileSizeKB,
+          filePath: filePath,
+        }),
       });
-      // setFormData(initialData); // Opcjonalne: resetowanie formularza
-    }, 1500);
+
+      const data = await res.json();
+
+      if (data.url) {
+        
+        window.location.href = data.url;
+      } else if (data.error) {
+        throw new Error(data.error);
+      } else {
+        throw new Error("Nieznany błąd podczas inicjowania płatności.");
+      }
+
+    } catch (submitError: any) {
+      console.error('❌ Błąd wysyłki zamówienia:', submitError);
+      setMessage({ type: 'error', text: submitError.message || 'Nie udało się wysłać zamówienia.' });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
 
@@ -268,7 +362,7 @@ const Scan_pricing: React.FC = () => {
           </div>
         )}
 
-        <form action="https://submit-form.com/Cg0o9odNC" encType="mulitpart/form-data" method="Post" className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
           
           {/* Sekcja 1: Parametry Skanowania */}
           <FormSection title="Parametry Skanowania" icon={Ruler}>
@@ -278,7 +372,7 @@ const Scan_pricing: React.FC = () => {
                 name="format"
                 value={formData.format}
                 onChange={handleChange}
-                options={formatOptions}
+                options={FORMATS.map(f => ({ value: f.id, label: `${f.label} (${f.dimensions}) - ${f.price_pln_netto.toFixed(2)} PLN netto` }))}
                 required
               />
               <SelectField
@@ -286,7 +380,7 @@ const Scan_pricing: React.FC = () => {
                 name="colorOption"
                 value={formData.colorOption}
                 onChange={handleChange}
-                options={colorOptions}
+                options={COLOR_OPTIONS.map(c => ({ value: c.id, label: `${c.label} (Mnożnik: x${c.multiplier})` }))}
                 required
               />
               <InputField
@@ -295,7 +389,7 @@ const Scan_pricing: React.FC = () => {
                 type="number"
                 value={formData.quantity}
                 onChange={handleChange}
-                placeholder={`Ilość dokumentów w formacie ${selectedFormatLabel}`}
+                placeholder={`Ilość dokumentów w formacie`}
                 required
                 error={errors.quantity}
               />
@@ -360,13 +454,13 @@ const Scan_pricing: React.FC = () => {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t pt-6 pb-4">
             <div className="text-center sm:text-left">
               <p className="text-gray-500 text-sm uppercase font-semibold">
-                Szacowana cena netto:
+                Szacowana cena brutto:
               </p>
-              <p className="text-4xl font-extrabold text-green-700">
-                {calculatePrice} PLN
+              <p className="text-4xl font-extrabold text-indigo-700">
+                {calculatePrice.brutto.toFixed(2)} PLN
               </p>
               <p className="text-gray-400 text-xs mt-1">
-                + obowiązujący podatek VAT
+                Netto: {calculatePrice.nettoDisplay} PLN | VAT (23%): {calculatePrice.vat.toFixed(2)} PLN
               </p>
             </div>
 

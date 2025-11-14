@@ -52,7 +52,10 @@ export async function POST(req: Request) {
             status: 'pending_payment',
             fileName: fileName,
             fileSizeKB: fileSizeKB,
-            filePath: filePath, // ZAPISUJEMY FAKTYCZNĄ ŚCIEŻKĘ JUŻ TERAZ
+            filePath: filePath,
+            NIP: formData.NIP,
+            REGON: formData.REGON,
+            TYPE: formData.TYPE, 
         })
         .select('id')
         .single();

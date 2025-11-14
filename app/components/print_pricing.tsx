@@ -11,17 +11,22 @@ const VAT_RATE = 0.23;
 // --- INTERFACES ---
 interface FormData {
   format: string;
-  customWidth: string;
-  customHeight: string;
   quantity: number;
-  material: string; // ID of the material/carrier
-  colorOption: string; // ID of the color option (NEW)
-  printLengthMultiplier: string; // Multiplier for print from roll
-  finishes: string[];
+  colorOption: string; // ID opcji koloru
   name: string;
   email: string;
   phone: string;
   file: File | null;
+  NIP: string;
+  REGON: string;
+  TYPE: string;
+
+  // Pola Specyficzne dla 'FormData' (opcjonalne w ogólnym kontekście)
+  customWidth?: string; 
+  customHeight?: string;
+  material?: string; // ID materiału/nośnika
+  printLengthMultiplier?: string; // Mnożnik dla wydruku z rolki
+  finishes?: string[];
 }
 
 interface SubmissionMessage {
@@ -215,6 +220,9 @@ const Print_pricing: React.FC = () => {
     email: "",
     phone: "",
     file: null,
+    NIP: "",
+    REGON: "",
+    TYPE: "PRINT",
   };
 
   const [formData, setFormData] = useState<FormData>(initialData);
@@ -250,8 +258,8 @@ const Print_pricing: React.FC = () => {
     const { value, checked } = e.target;
     setFormData(prev => {
       const newFinishes = checked
-        ? [...prev.finishes, value]
-        : prev.finishes.filter(f => f !== value);
+        ? [...(prev.finishes ?? []), value]
+        : (prev.finishes ?? []).filter(f => f !== value);
       return { ...prev, finishes: newFinishes };
     });
   };
@@ -391,7 +399,6 @@ const Print_pricing: React.FC = () => {
       const data = await response.json();
 
       if (data.url) {
-        // 2. Przekierowanie do sesji Stripe Checkout
         window.location.href = data.url;
       } else if (data.error) {
         throw new Error(data.error);
@@ -519,7 +526,24 @@ const Print_pricing: React.FC = () => {
                 options={lengthMultiplierOptions}
                 required
               />
-
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Załącz plik (max. 10MB)
+              </label>
+              <input
+                type="file"
+                name="file"
+                onChange={handleChange}
+                className="block w-full text-sm text-gray-600 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer transition duration-150"
+                
+              />
+              {formData.file && !errors.file && (
+                <p className="mt-2 text-xs text-gray-500">
+                  Wybrany plik: **{formData.file.name}** ({Math.round(formData.file.size / 1024)} KB)
+                </p>
+              )}
+              {errors.file && <p className="mt-1 text-sm text-red-600">{errors.file}</p>}
+            </div>
             </div>
 
              {/* Sekcja Wykończenia (zakomentowana) */}
@@ -560,25 +584,24 @@ const Print_pricing: React.FC = () => {
                 icon={Phone}
                 error={errors.phone}
               />
-            </div>
-
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Załącz plik (max. 10MB)
-              </label>
-              <input
-                type="file"
-                name="file"
+              <InputField
+                label="NIP"
+                name="NIP"
+                value={formData.NIP}
                 onChange={handleChange}
-                className="block w-full text-sm text-gray-600 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer transition duration-150"
-                
+                placeholder="123-456-32-18"
+                icon={User}
+                error={errors.NIP}
               />
-              {formData.file && !errors.file && (
-                <p className="mt-2 text-xs text-gray-500">
-                  Wybrany plik: **{formData.file.name}** ({Math.round(formData.file.size / 1024)} KB)
-                </p>
-              )}
-              {errors.file && <p className="mt-1 text-sm text-red-600">{errors.file}</p>}
+              <InputField
+                label="REGON"
+                name="REGON"
+                value={formData.REGON}
+                onChange={handleChange}
+                placeholder="012345678"
+                icon={User}
+                error={errors.REGON}
+              />
             </div>
           </FormSection>
 
@@ -598,7 +621,7 @@ const Print_pricing: React.FC = () => {
 
             <button
               type="submit"
-              disabled={isSubmitting || Object.keys(errors).length > 0}
+              disabled={isSubmitting}
               className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3 text-lg font-semibold rounded-full text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-500/50 transition duration-200 shadow-xl"
             >
               {isSubmitting ? (
