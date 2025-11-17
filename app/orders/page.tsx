@@ -25,7 +25,8 @@ interface Order {
     filePath?: string;
     NIP: string;
     REGON: string;
-    TYPE: 'PRINT' | 'SCAN' | string; // ✅ Zaktualizowany TYPE
+    TYPE: 'PRINT' | 'SCAN' | string;
+    PACZKOMAT?: string;
 }
 
 interface OrderRowProps {
@@ -143,6 +144,7 @@ const OrderRow: React.FC<OrderRowProps> = ({ order, markAsDone }) => {
                                 <p><strong>Email:</strong> {order.email}</p>
                                 <p><strong>NIP:</strong> {order.NIP || 'N/A'}</p>
                                 <p><strong>REGON:</strong> {order.REGON || 'N/A'}</p>
+                                <p><strong>Adres Paczkomatu:</strong>{ order.PACZKOMAT || 'N/A'}</p>
                             </div>
                             <div>
                                 <h4 className="font-semibold text-gray-700 mb-1">Szczegóły {order.TYPE === 'PRINT' ? 'Druku' : 'Skanu'}</h4>
@@ -379,6 +381,7 @@ export default function PanelPage() {
                                     <th className="py-3 px-4">Status</th>
                                     <th className="py-3 px-4">Cena netto</th>
                                     <th className="py-3 px-4 text-center">Szczegóły</th>
+                                    <th className="py-3 px-4">Paczkomat</th>
                                 </tr>
                             </thead>
                             <tbody>

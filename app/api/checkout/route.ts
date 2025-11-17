@@ -55,7 +55,8 @@ export async function POST(req: Request) {
             filePath: filePath,
             NIP: formData.NIP,
             REGON: formData.REGON,
-            TYPE: formData.TYPE, 
+            TYPE: formData.TYPE,
+            PACZKOMAT: formData.PACZKOMAT,
         })
         .select('id')
         .single();
