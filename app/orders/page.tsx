@@ -196,7 +196,7 @@ const OrderRow: React.FC<OrderRowProps> = ({ order, markAsDone }) => {
 
 export default function PanelPage() {
     const [orders, setOrders] = useState<Order[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     // Stany dla autoryzacji
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [username, setUsername] = useState("");
@@ -377,11 +377,10 @@ export default function PanelPage() {
                                     <th className="py-3 px-4">ID</th>
                                     <th className="py-3 px-4">Data</th>
                                     <th className="py-3 px-4">Klient</th>
-                                    <th className="py-3 px-4">Typ</th> {/* ✅ Nowa kolumna */}
+                                    <th className="py-3 px-4">Typ</th>
                                     <th className="py-3 px-4">Status</th>
                                     <th className="py-3 px-4">Cena netto</th>
                                     <th className="py-3 px-4 text-center">Szczegóły</th>
-                                    <th className="py-3 px-4">Paczkomat</th>
                                 </tr>
                             </thead>
                             <tbody>

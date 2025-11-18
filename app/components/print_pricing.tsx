@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { Archive, Layers, Ruler, Mail, Phone, User, Send, Check } from "lucide-react";
 // Usunięto import createClient z Supabase, ponieważ używamy go tylko w route.ts i verify-payment.ts
 // import { createClient } from "@supabase/supabase-js"; 
@@ -27,6 +27,7 @@ interface FormData {
   material?: string; // ID materiału/nośnika
   printLengthMultiplier?: string; // Mnożnik dla wydruku z rolki
   finishes?: string[];
+  PACZKOMAT?: string;
 }
 
 interface SubmissionMessage {
@@ -223,12 +224,16 @@ const Print_pricing: React.FC = () => {
     NIP: "",
     REGON: "",
     TYPE: "PRINT",
+    PACZKOMAT: "",
   };
 
   const [formData, setFormData] = useState<FormData>(initialData);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<SubmissionMessage | null>(null);
+  const [showInpostMap, setShowInpostMap] = useState(false);
+  const [selectedPaczkomat, setSelectedPaczkomat] = useState<any>(null);
+  const inpostContainerRef = useRef<HTMLDivElement | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -266,6 +271,7 @@ const Print_pricing: React.FC = () => {
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
+    if (!formData.PACZKOMAT) newErrors.PACZKOMAT = "Wybierz paczkomat przed wysłaniem formularza.";
     if (!formData.name.trim()) newErrors.name = "Imię i nazwisko jest wymagane.";
     if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "Wprowadź poprawny adres e-mail.";
@@ -281,6 +287,54 @@ const Print_pricing: React.FC = () => {
     setErrors(prev => ({ ...prev, ...newErrors }));
     return Object.keys(newErrors).length === 0;
   };
+
+  // Make sure global handler for InPost widget is available on window
+ useEffect(() => {
+  (window as any).afterPointSelectedPrint = (point: any) => {
+    console.log("Selected InPost paczkomat (Print):", point);
+
+    setSelectedPaczkomat(point);
+
+    setFormData((prev) => ({
+      ...prev,
+      PACZKOMAT: `${point.address.line1}, ${point.address.line2}`,
+    }));
+
+    setShowInpostMap(false);
+  };
+
+  return () => {
+    try {
+      delete (window as any).afterPointSelectedPrint;
+    } catch (e) {
+      (window as any).afterPointSelectedPrint = undefined;
+    }
+  };
+}, []);
+
+  // Mount / unmount the inpost widget dynamically when modal is opened
+  useEffect(() => {
+    const container = inpostContainerRef.current;
+    if (!container) return;
+
+    if (showInpostMap) {
+      if (container.querySelector('inpost-geowidget')) return;
+
+      const widget = document.createElement('inpost-geowidget');
+      widget.setAttribute('style', 'width: 100%; height: 100%;');
+      widget.setAttribute('onpoint', 'afterPointSelectedPrint');
+      widget.setAttribute('token', "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJzQlpXVzFNZzVlQnpDYU1XU3JvTlBjRWFveFpXcW9Ua2FuZVB3X291LWxvIn0.eyJleHAiOjIwNDU1MDg2OTUsImlhdCI6MTczMDE0ODY5NSwianRpIjoiYmI1MzdiNWQtYzBlNi00MGUxLWE4MGYtYWU3YzQzMTI1MjhhIiwiaXNzIjoiaHR0cHM6Ly9sb2dpbi5pbnBvc3QucGwvYXV0aC9yZWFsbXMvZXh0ZXJuYWwiLCJzdWIiOiJmOjEyNDc1MDUxLTFjMDMtNGU1OS1iYTBjLTJiNDU2OTVlZjUzNTpjNUNRd0d4d3p6RjVsMzZpaTdhOUdRdlkyc0t0QU9Yb0l3em1GTlItZDFnIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoic2hpcHgiLCJzZXNzaW9uX3N0YXRlIjoiM2IwMjg4OTItMmY1Mi00YjQwLTkzZWItYWE2ODUxYjQ2OTc3Iiwic2NvcGUiOiJvcGVuaWQgYXBpOmFwaXBvaW50cyIsInNpZCI6IjNiMDI4ODkyLTJmNTItNGI0MC05M2ViLWFhNjg1MWI0Njk3NyIsImFsbG93ZWRfcmVmZXJyZXJzIjoiIiwidXVpZCI6ImRmZjVmMjYyLTZjNTEtNDhhNi05OThhLTMzMTYxZGM1ZjUzMSJ9.T0iXl4nKc8-K8cylXVNcPTMgLEjZmN-naNjXUCeM_wEJ7cslCJVvOgH4b8_Xo8QtPvNJ6-22V9V9fhP7Xu5u_IXCJzF_Vx3X0aeRZpIyZJeFwyX0YOoWqyWcVkvwS_1K7SguWmg_gj4zgvshbgSDmDAmaku_khr8WNLuBNyvMsbwXEGnzV668DuER8V8dkQWBeU0gNZtAtZjIVqjsiWs8E4gYgmLkFOCEEach45fnM1mMDInDRmkKGdYV2FKfLwGaX-Ay0cr2Iyh2JDyxwoeVNrQru8mI41_zjHcz34zlFRMpuAQZAZGLfeJyJfXily0S1ehdqjhSfC_IEVFn6aUyQ");
+      widget.setAttribute('language', 'pl');
+      widget.setAttribute('config', 'parcelCollect');
+      container.appendChild(widget);
+    } else {
+      container.innerHTML = '';
+    }
+
+    return () => {
+      if (container) container.innerHTML = '';
+    };
+  }, [showInpostMap]);
 
   // Zaktualizowana funkcja obliczająca cenę, zwracająca obiekt PriceDetails
   const calculatePrice = useMemo<PriceDetails>(() => {
@@ -421,7 +475,6 @@ const Print_pricing: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-8 lg:p-12 font-sans">
-      <script src="https://cdn.tailwindcss.com"></script>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
@@ -602,7 +655,26 @@ const Print_pricing: React.FC = () => {
                 icon={User}
                 error={errors.REGON}
               />
-            </div>
+                {/* InPost Map Button */}
+                <div className="mb-4 flex flex-col justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowInpostMap(true)}
+                    aria-label="Wybierz paczkomat InPost"
+                    className="w-full h-[4.5vh] rounded-md text-left font-semibold text-indigo-700 border border-indigo-200 bg-white hover:bg-indigo-50 transition duration-200 shadow-sm relative bottom-0 flex items-center gap-3 px-3"
+                  >
+                    <Mail className="h-5 w-5 text-indigo-600" aria-hidden="true" />
+                    <span>Wybierz paczkomat InPost</span>
+                  </button>
+                </div>
+              </div>
+              {/* Display selected InPost paczkomat */}
+              {formData.PACZKOMAT && (
+                <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
+                  <p className="text-sm font-semibold text-gray-700">Wybrany paczkomat:</p>
+                  <pre className="text-xs text-gray-600 mt-1">{formData.PACZKOMAT}</pre>
+                </div>
+              )}
           </FormSection>
 
           {/* Sekcja: Podsumowanie i Akcja */}
@@ -638,6 +710,23 @@ const Print_pricing: React.FC = () => {
             </button>
           </div>
         </form>
+        {/* InPost modal with the widget (renders only in browser) */}
+        {showInpostMap && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="bg-white rounded-lg w-full max-w-2xl h-[70vh] overflow-hidden relative">
+              <button
+                onClick={() => setShowInpostMap(false)}
+                className="absolute right-3 top-3 text-gray-600 hover:text-gray-900">
+                Zamknij
+              </button>
+              <div className="h-full">
+                <div className="absolute inset-0">
+                  <div ref={inpostContainerRef} className="h-full" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { Archive, Layers, Ruler, Mail, Phone, User, Send, Check } from "lucide-react";
+import { Archive, Layers, Ruler, Mail, Phone, User, Send, Check, Building, Pencil, Package } from "lucide-react";
 
 
 const VAT_RATE = 0.23;
@@ -98,7 +98,6 @@ const COLOR_OPTIONS: ColorItem[] = [
   { id: "MONO", label: "Czarno-biały", multiplier: 1.0 }, // Mnożnik 1.0 dla Czarno-białego
   { id: "COLOR", label: "Kolorowy", multiplier: 1.3 }, // Mnożnik 1.3 dla Kolorowego
 ];
-
 
 // --- KOMPONENTY POMOCNICZE (HELPER COMPONENTS) ---
 
@@ -346,61 +345,55 @@ const Scan_pricing: React.FC = () => {
 
   // Make sure global handler for InPost widget is available on window
  useEffect(() => {
-  (window as any).afterPointSelected = (point: any) => {
-    console.log("Selected InPost paczkomat:", point);
+  (window as any).afterPointSelectedScan = (point: any) => {
+    console.log("Selected InPost paczkomat (Scan):", point);
 
-    // Zaktualizuj stan `selectedPaczkomat`
     setSelectedPaczkomat(point);
 
-    // Zaktualizuj `formData` o dane paczkomatu
     setFormData((prev) => ({
       ...prev,
       PACZKOMAT: `${point.address.line1}, ${point.address.line2}`,
     }));
 
-    // Zamknij mapę po wyborze paczkomatu
     setShowInpostMap(false);
   };
 
   return () => {
     try {
-      delete (window as any).afterPointSelected;
+      delete (window as any).afterPointSelectedScan;
     } catch (e) {
-      (window as any).afterPointSelected = undefined;
+      (window as any).afterPointSelectedScan = undefined;
     }
   };
 }, []);
 
-  // Mount / unmount the inpost widget dynamically when modal is opened
-  useEffect(() => {
-    const container = inpostContainerRef.current;
-    if (!container) return;
+// Update the `onpoint` attribute in the widget
+useEffect(() => {
+  const container = inpostContainerRef.current;
+  if (!container) return;
 
-    if (showInpostMap) {
-      // If the element already exists, do nothing
-      if (container.querySelector('inpost-geowidget')) return;
+  if (showInpostMap) {
+    if (container.querySelector('inpost-geowidget')) return;
 
-      const widget = document.createElement('inpost-geowidget');
-      widget.setAttribute('style', 'width: 100%; height: 100%;');
-      widget.setAttribute('onpoint', 'afterPointSelected');
-      widget.setAttribute('token', "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJzQlpXVzFNZzVlQnpDYU1XU3JvTlBjRWFveFpXcW9Ua2FuZVB3X291LWxvIn0.eyJleHAiOjIwNDU1MDg2OTUsImlhdCI6MTczMDE0ODY5NSwianRpIjoiYmI1MzdiNWQtYzBlNi00MGUxLWE4MGYtYWU3YzQzMTI1MjhhIiwiaXNzIjoiaHR0cHM6Ly9sb2dpbi5pbnBvc3QucGwvYXV0aC9yZWFsbXMvZXh0ZXJuYWwiLCJzdWIiOiJmOjEyNDc1MDUxLTFjMDMtNGU1OS1iYTBjLTJiNDU2OTVlZjUzNTpjNUNRd0d4d3p6RjVsMzZpaTdhOUdRdlkyc0t0QU9Yb0l3em1GTlItZDFnIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoic2hpcHgiLCJzZXNzaW9uX3N0YXRlIjoiM2IwMjg4OTItMmY1Mi00YjQwLTkzZWItYWE2ODUxYjQ2OTc3Iiwic2NvcGUiOiJvcGVuaWQgYXBpOmFwaXBvaW50cyIsInNpZCI6IjNiMDI4ODkyLTJmNTItNGI0MC05M2ViLWFhNjg1MWI0Njk3NyIsImFsbG93ZWRfcmVmZXJyZXJzIjoiIiwidXVpZCI6ImRmZjVmMjYyLTZjNTEtNDhhNi05OThhLTMzMTYxZGM1ZjUzMSJ9.T0iXl4nKc8-K8cylXVNcPTMgLEjZmN-naNjXUCeM_wEJ7cslCJVvOgH4b8_Xo8QtPvNJ6-22V9V9fhP7Xu5u_IXCJzF_Vx3X0aeRZpIyZJeFwyX0YOoWqyWcVkvwS_1K7SguWmg_gj4zgvshbgSDmDAmaku_khr8WNLuBNyvMsbwXEGnzV668DuER8V8dkQWBeU0gNZtAtZjIVqjsiWs8E4gYgmLkFOCEEach45fnM1mMDInDRmkKGdYV2FKfLwGaX-Ay0cr2Iyh2JDyxwoeVNrQru8mI41_zjHcz34zlFRMpuAQZAZGLfeJyJfXily0S1ehdqjhSfC_IEVFn6aUyQ");
-      widget.setAttribute('language', 'pl');
-      widget.setAttribute('config', 'parcelCollect');
-      container.appendChild(widget);
-    } else {
-      // Cleanup - remove widget
-      container.innerHTML = '';
-    }
+    const widget = document.createElement('inpost-geowidget');
+    widget.setAttribute('style', 'width: 100%; height: 100%;');
+    widget.setAttribute('onpoint', 'afterPointSelectedScan');
+    widget.setAttribute('token', "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJzQlpXVzFNZzVlQnpDYU1XU3JvTlBjRWFveFpXcW9Ua2FuZVB3X291LWxvIn0.eyJleHAiOjIwNDU1MDg2OTUsImlhdCI6MTczMDE0ODY5NSwianRpIjoiYmI1MzdiNWQtYzBlNi00MGUxLWE4MGYtYWU3YzQzMTI1MjhhIiwiaXNzIjoiaHR0cHM6Ly9sb2dpbi5pbnBvc3QucGwvYXV0aC9yZWFsbXMvZXh0ZXJuYWwiLCJzdWIiOiJmOjEyNDc1MDUxLTFjMDMtNGU1OS1iYTBjLTJiNDU2OTVlZjUzNTpjNUNRd0d4d3p6RjVsMzZpaTdhOUdRdlkyc0t0QU9Yb0l3em1GTlItZDFnIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoic2hpcHgiLCJzZXNzaW9uX3N0YXRlIjoiM2IwMjg4OTItMmY1Mi00YjQwLTkzZWItYWE2ODUxYjQ2OTc3Iiwic2NvcGUiOiJvcGVuaWQgYXBpOmFwaXBvaW50cyIsInNpZCI6IjNiMDI4ODkyLTJmNTItNGI0MC05M2ViLWFhNjg1MWI0Njk3NyIsImFsbG93ZWRfcmVmZXJyZXJzIjoiIiwidXVpZCI6ImRmZjVmMjYyLTZjNTEtNDhhNi05OThhLTMzMTYxZGM1ZjUzMSJ9.T0iXl4nKc8-K8cylXVNcPTMgLEjZmN-naNjXUCeM_wEJ7cslCJVvOgH4b8_Xo8QtPvNJ6-22V9V9fhP7Xu5u_IXCJzF_Vx3X0aeRZpIyZJeFwyX0YOoWqyWcVkvwS_1K7SguWmg_gj4zgvshbgSDmDAmaku_khr8WNLuBNyvMsbwXEGnzV668DuER8V8dkQWBeU0gNZtAtZjIVqjsiWs8E4gYgmLkFOCEEach45fnM1mMDInDRmkKGdYV2FKfLwGaX-Ay0cr2Iyh2JDyxwoeVNrQru8mI41_zjHcz34zlFRMpuAQZAZGLfeJyJfXily0S1ehdqjhSfC_IEVFn6aUyQ");
+    widget.setAttribute('language', 'pl');
+    widget.setAttribute('config', 'parcelCollect');
+    container.appendChild(widget);
+  } else {
+    container.innerHTML = '';
+  }
 
-    return () => {
-      if (container) container.innerHTML = '';
-    };
-  }, [showInpostMap]);
+  return () => {
+    if (container) container.innerHTML = '';
+  };
+}, [showInpostMap]);
 
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-8 lg:p-12 font-sans">
-      <script src="https://cdn.tailwindcss.com"></script>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; }
@@ -516,7 +509,7 @@ const Scan_pricing: React.FC = () => {
                 onChange={handleChange}
                 placeholder="np. 1234563218"
                 maxLength={10}
-                icon={User}
+                icon={Building}
                 error={errors.NIP}
               />
               <InputField
@@ -525,19 +518,22 @@ const Scan_pricing: React.FC = () => {
                 value={formData.REGON}
                 onChange={handleChange}
                 placeholder="np. 012345678"
-                icon={User}
+                icon={Pencil}
                 error={errors.REGON}
               />
-            </div>
-            {/* InPost Map Button */}
-            <div className="w-1/3">
-              <button
-                type="button"
-                onClick={() => setShowInpostMap(true)}
-                className="w-full text-lg font-semibold text-green-700 border border-green-200 bg-white hover:bg-green-50 transition duration-200 shadow-sm"
-              >
-                Wybierz paczkomat InPost
-              </button>
+              {/* InPost Map Button */}
+              <div className="mb-4 flex flex-col justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowInpostMap(true)}
+                  aria-label="Wybierz paczkomat InPost"
+                  className="w-full h-[5vh] rounded-md text-left font-semibold text-green-700 border border-green-200 bg-white hover:bg-green-50 transition duration-200 shadow-sm relative bottom-0 flex items-center gap-3 px-3"
+                >
+                  {/* Ikona przesyłki (Mail) */}
+                  <Package className="h-5 w-5 text-green-600" aria-hidden="true" />
+                  <span>Wybierz paczkomat InPost</span>
+                </button>
+              </div>
             </div>
 
             {/* Display selected InPost paczkomat */}
@@ -590,15 +586,16 @@ const Scan_pricing: React.FC = () => {
           <div className="bg-white rounded-lg w-full max-w-2xl h-[70vh] overflow-hidden relative">
             <button
               onClick={() => setShowInpostMap(false)}
-              className="absolute right-3 top-3 text-gray-600 hover:text-gray-900">
+              className="absolute right-3 top-3 text-gray-600 hover:text-gray-900"
+            >
               Zamknij
             </button>
             <div className="h-full">
               {/* If you don't have the inpost script loaded globally, you must add it to your layout or head. */}
-                      <div className="absolute inset-0">
-                        {/* Container where we will mount the InPost widget dynamically */}
-                        <div ref={inpostContainerRef} className="h-full" />
-                      </div>
+              <div className="absolute inset-0">
+                {/* Container where we will mount the InPost widget dynamically */}
+                <div ref={inpostContainerRef} className="h-full" />
+              </div>
             </div>
           </div>
         </div>
