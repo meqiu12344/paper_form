@@ -112,7 +112,7 @@ const FormSection: React.FC<FormSectionProps> = ({ title, icon: Icon, children }
     </div>
   );
 
-const InputField: React.FC<InputFieldProps> = ({ label, name, type = "text", value, onChange, placeholder, icon: Icon, required = false, error, maxLength = 10 }) => (
+const InputField: React.FC<InputFieldProps> = ({ label, name, type = "text", value, onChange, placeholder, icon: Icon, required = false, error, maxLength }) => (
   <div className="mb-4">
     <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
       {label} {required && <span className="text-red-500">*</span>}
@@ -130,6 +130,7 @@ const InputField: React.FC<InputFieldProps> = ({ label, name, type = "text", val
         value={value}
         onChange={onChange}
         placeholder={placeholder}
+        maxLength={maxLength}
         required={required}
         className={`block w-full rounded-lg border ${error ? 'border-red-500' : 'border-gray-300'} py-2.5 ${Icon ? 'pl-10' : 'pl-3'} pr-3 focus:outline-none focus:ring-green-500 focus:border-green-500 transition duration-150 sm:text-sm`}
       />
@@ -498,6 +499,7 @@ useEffect(() => {
                 value={formData.phone}
                 onChange={handleChange}
                 placeholder="np. 123456789"
+                maxLength={9}
                 icon={Phone}
                 error={errors.phone}
               />
@@ -518,6 +520,7 @@ useEffect(() => {
                 value={formData.REGON}
                 onChange={handleChange}
                 placeholder="np. 012345678"
+                maxLength={9}
                 icon={Pencil}
                 error={errors.REGON}
               />

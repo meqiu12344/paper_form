@@ -51,6 +51,7 @@ interface InputFieldProps {
   icon?: React.ComponentType<any>;
   required?: boolean;
   error?: string;
+  maxLength?: number;
 }
 
 interface SelectFieldProps {
@@ -120,9 +121,9 @@ const FORMATS: PriceItem[] = [
 
 // Materiały/Nośniki (Zastosowanie i Nośnik z CSV)
 const MATERIALS: MaterialItem[] = [
-  { id: "STANDARD_80", label: "Rys. Techniczny / Papier standardowy 80g/m²", price_multiplier: 1.0 }, // CENA = x1
-  { id: "COATED_180", label: "Plakat / Papier powlekany 180g/m²", price_multiplier: 2.0 }, // CENA = x2
-  { id: "PHOTO_SATIN", label: "Fotografia / Papier fotograficzny Satyna/Perła 260g/m²", price_multiplier: 3.0 }, // Przyjmuję x3 na podstawie ceny PLAKAT A0/P.KOLOR A0 vs CAD A0
+  { id: "Rys. Techniczny / Papier standardowy 80g/m²", label: "Rys. Techniczny / Papier standardowy 80g/m²", price_multiplier: 1.0 }, // CENA = x1
+  { id: "Plakat / Papier powlekany 180g/m²", label: "Plakat / Papier powlekany 180g/m²", price_multiplier: 2.0 }, // CENA = x2
+  { id: "Fotografia / Papier fotograficzny Satyna/Perła 260g/m²", label: "Fotografia / Papier fotograficzny Satyna/Perła 260g/m²", price_multiplier: 3.0 }, // Przyjmuję x3 na podstawie ceny PLAKAT A0/P.KOLOR A0 vs CAD A0
 ];
 
 // Mnożniki długości wydruku z rolki (DŁUŻSZY BOK x1...x6 z CSV)
@@ -137,12 +138,12 @@ const LENGTH_MULTIPLIERS: LengthMultiplierItem[] = [
 
 // NEW: Lista kolorów z mnożnikami cenowymi
 const COLOR_OPTIONS: ColorItem[] = [
-  { id: "1", label: "DRUK CZARNO-BIAŁY, DO 10% POW. ZADRUKU", multiplier: 1.0 },
-  { id: "2", label: "DRUK CZARNO-BIAŁY, DO 50% POW. ZADRUKU", multiplier: 2.0 },
-  { id: "3", label: "DRUK CZARNO-BIAŁY, PONAD 50% POW. ZADRUKU", multiplier: 3.0 },
-  { id: "4", label: "DRUK KOLOROWY, DO 10% POW. ZADRUKU", multiplier: 2.0 },
-  { id: "5", label: "DRUK KOLOROWY, DO 50% POW. ZADRUKU", multiplier: 3.0 },
-  { id: "6", label: "DRUK KOLOROWY, PONAD 50% POW. ZADRUKU", multiplier: 4.0 },
+  { id: "1. DRUK CZARNO-BIAŁY, DO 10% POW. ZADRUKU", label: "DRUK CZARNO-BIAŁY, DO 10% POW. ZADRUKU", multiplier: 1.0 },
+  { id: "2. DRUK CZARNO-BIAŁY, DO 50% POW. ZADRUKU", label: "DRUK CZARNO-BIAŁY, DO 50% POW. ZADRUKU", multiplier: 2.0 },
+  { id: "3. DRUK CZARNO-BIAŁY, PONAD 50% POW. ZADRUKU", label: "DRUK CZARNO-BIAŁY, PONAD 50% POW. ZADRUKU", multiplier: 3.0 },
+  { id: "4. DRUK KOLOROWY, DO 10% POW. ZADRUKU", label: "DRUK KOLOROWY, DO 10% POW. ZADRUKU", multiplier: 2.0 },
+  { id: "5. DRUK KOLOROWY, DO 50% POW. ZADRUKU", label: "DRUK KOLOROWY, DO 50% POW. ZADRUKU", multiplier: 3.0 },
+  { id: "6. DRUK KOLOROWY, PONAD 50% POW. ZADRUKU", label: "DRUK KOLOROWY, PONAD 50% POW. ZADRUKU", multiplier: 4.0 },
 ];
 
 // --- KOMPONENTY POMOCNICZE ---
@@ -157,7 +158,7 @@ const FormSection: React.FC<FormSectionProps> = ({ title, icon: Icon, children }
   </div>
 );
 
-const InputField: React.FC<InputFieldProps> = ({ label, name, type = "text", value, onChange, placeholder, icon: Icon, required = false, error }) => (
+const InputField: React.FC<InputFieldProps> = ({ label, name, type = "text", value, onChange, placeholder, icon: Icon, required = false, error, maxLength }) => (
   <div className="mb-4">
     <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-1">
       {label} {required && <span className="text-red-500">*</span>}
@@ -175,6 +176,7 @@ const InputField: React.FC<InputFieldProps> = ({ label, name, type = "text", val
         value={value}
         onChange={onChange}
         placeholder={placeholder}
+        maxLength={maxLength}
         required={required}
         className={`block w-full rounded-lg border ${error ? 'border-red-500' : 'border-gray-300'} py-2.5 ${Icon ? 'pl-10' : 'pl-3'} pr-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 sm:text-sm`}
       />
@@ -633,7 +635,8 @@ const Print_pricing: React.FC = () => {
                 type="tel"
                 value={formData.phone}
                 onChange={handleChange}
-                placeholder="+48 123 456 789"
+                placeholder="np. 123456789"
+                maxLength={9}
                 icon={Phone}
                 error={errors.phone}
               />
@@ -642,7 +645,8 @@ const Print_pricing: React.FC = () => {
                 name="NIP"
                 value={formData.NIP}
                 onChange={handleChange}
-                placeholder="123-456-32-18"
+                placeholder="np. 1234567890"
+                maxLength={10}
                 icon={User}
                 error={errors.NIP}
               />
@@ -651,7 +655,8 @@ const Print_pricing: React.FC = () => {
                 name="REGON"
                 value={formData.REGON}
                 onChange={handleChange}
-                placeholder="012345678"
+                placeholder="np. 012345678"
+                maxLength={9}
                 icon={User}
                 error={errors.REGON}
               />

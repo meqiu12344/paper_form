@@ -144,7 +144,7 @@ const OrderRow: React.FC<OrderRowProps> = ({ order, markAsDone }) => {
                                 <p><strong>Email:</strong> {order.email}</p>
                                 <p><strong>NIP:</strong> {order.NIP || 'N/A'}</p>
                                 <p><strong>REGON:</strong> {order.REGON || 'N/A'}</p>
-                                <p><strong>Adres Paczkomatu:</strong>{ order.PACZKOMAT || 'N/A'}</p>
+                                <p><strong>Adres Paczkomatu:</strong> {order.PACZKOMAT || 'N/A'}</p>
                             </div>
                             <div>
                                 <h4 className="font-semibold text-gray-700 mb-1">Szczegóły {order.TYPE === 'PRINT' ? 'Druku' : 'Skanu'}</h4>
@@ -153,7 +153,6 @@ const OrderRow: React.FC<OrderRowProps> = ({ order, markAsDone }) => {
                                 <p><strong>Materiał:</strong> {order.material || 'N/A'}</p>
                                 <p><strong>Kolor:</strong> {order.colorOption || 'N/A'}</p>
                                 <p><strong>Długość druku:</strong> {order.printLengthMultiplier || 'N/A'}</p>
-                                <p><strong>Wykończenia:</strong> {order.finishes || 'Brak'}</p>
                             </div>
                             <div>
                                 <h4 className="font-semibold text-gray-700 mb-1">Plik i Akcja</h4>
