@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { Archive, Layers, Ruler, Mail, Phone, User, Send, Check } from "lucide-react";
+import { Archive, Layers, Ruler, Mail, Phone, User, Send, Check, Info } from "lucide-react";
 // Usunięto import createClient z Supabase, ponieważ używamy go tylko w route.ts i verify-payment.ts
 // import { createClient } from "@supabase/supabase-js"; 
 
 // Stała dla VAT (używamy 23% dla polskiego standardu)
 const VAT_RATE = 0.23;
+// Opłata za dostawę InPost (brutto)
+const INPOST_FEE_BRUTTO = 16.99;
 
 // --- INTERFACES ---
 interface FormData {
@@ -243,6 +245,18 @@ const Print_pricing: React.FC = () => {
     if (type === 'file') {
       const file = (e.target as HTMLInputElement).files?.[0] || null;
       // Prosta walidacja rozmiaru pliku (max 10MB)
+      // Dozwolone rozszerzenia
+      const allowedExt = ['.dwg','.dxf','.pdf','.jpg','.jpeg','.jpe','.png','.bmp','.tiff','.ifc','.xcf','.doc','.xls'];
+      if (file) {
+        const lowerName = file.name.toLowerCase();
+        const isAllowed = allowedExt.some(ext => lowerName.endsWith(ext));
+        if (!isAllowed) {
+          setErrors(prev => ({ ...prev, file: 'Nieprawidłowy typ pliku. Dozwolone: dwg, dxf, pdf, jpg, jpeg, jpe, png, bmp, tiff, ifc, xcf, doc, xls.' }));
+          setFormData(prev => ({ ...prev, [name]: null }));
+          setMessage({ type: 'error', text: 'Nieprawidłowy typ pliku. Proszę wybrać plik o dozwolonym rozszerzeniu.' });
+          return;
+        }
+      }
       if (file && file.size > 10 * 1024 * 1024) {
           setErrors(prev => ({ ...prev, file: 'Plik jest za duży (max 10MB).' }));
           setFormData(prev => ({ ...prev, [name]: null }));
@@ -273,7 +287,6 @@ const Print_pricing: React.FC = () => {
 
   const validate = () => {
     const newErrors: Record<string, string> = {};
-    if (!formData.PACZKOMAT) newErrors.PACZKOMAT = "Wybierz paczkomat przed wysłaniem formularza.";
     if (!formData.name.trim()) newErrors.name = "Imię i nazwisko jest wymagane.";
     if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "Wprowadź poprawny adres e-mail.";
@@ -285,6 +298,11 @@ const Print_pricing: React.FC = () => {
     if (formData.quantity < 1) newErrors.quantity = "Ilość musi być większa niż 0.";
     // Walidacja, czy wybrano plik (jeśli jest to wymagane)
     // if (!formData.file) newErrors.file = "Załącz plik do wydruku.";
+
+    // Minimalna cena zamówienia: 2 PLN brutto
+    if (calculatePrice.brutto < 2) {
+      newErrors.price = "Minimalna cena zamówienia to 2 PLN.";
+    }
 
     setErrors(prev => ({ ...prev, ...newErrors }));
     return Object.keys(newErrors).length === 0;
@@ -376,16 +394,36 @@ const Print_pricing: React.FC = () => {
 
     // Całkowita cena netto
     const totalPriceNetto = unitPriceNetto * quantity;
-    const vatAmount = totalPriceNetto * VAT_RATE;
-    const totalPriceBrutto = totalPriceNetto + vatAmount;
+    let vatAmount = totalPriceNetto * VAT_RATE;
+    let totalPriceBrutto = totalPriceNetto + vatAmount;
 
-    return {
-        netto: totalPriceNetto,
+    // Jeśli wybrano paczkomat InPost (PACZKOMAT !== 'Odbiór osobisty' i niepuste), dolicz opłatę dostawy
+    if (formData.PACZKOMAT && formData.PACZKOMAT.toString().trim() !== 'Odbiór osobisty') {
+      const shippingBrutto = INPOST_FEE_BRUTTO;
+      const shippingNetto = shippingBrutto / (1 + VAT_RATE);
+      const shippingVat = shippingBrutto - shippingNetto;
+      // Dodajemy składniki dostawy do łącznych wartości
+      totalPriceBrutto += shippingBrutto;
+      vatAmount += shippingVat;
+      // Dodajemy netto dostawy do całkowitej netto
+      // (totalPriceNetto jest const; użyjemy zmiennej pomocniczej)
+      // Utwórz nową wartość netto do zwrócenia
+      const totalNettoWithShipping = totalPriceNetto + shippingNetto;
+      return {
+        netto: totalNettoWithShipping,
         vat: vatAmount,
         brutto: totalPriceBrutto,
-        nettoDisplay: totalPriceNetto.toFixed(2),
+        nettoDisplay: totalNettoWithShipping.toFixed(2),
+      };
+    }
+
+    return {
+      netto: totalPriceNetto,
+      vat: vatAmount,
+      brutto: totalPriceBrutto,
+      nettoDisplay: totalPriceNetto.toFixed(2),
     };
-  }, [formData.format, formData.customWidth, formData.customHeight, formData.quantity, formData.material, formData.printLengthMultiplier, formData.colorOption]);
+  }, [formData.format, formData.customWidth, formData.customHeight, formData.quantity, formData.material, formData.printLengthMultiplier, formData.colorOption, formData.PACZKOMAT]);
 
 
   // FUNKCJA OBSŁUGI SUBMITU I PŁATNOŚCI
@@ -398,6 +436,15 @@ const Print_pricing: React.FC = () => {
     }
 
     setIsSubmitting(true);
+
+    // Jeśli nie wybrano paczkomatu, traktujemy to jako odbiór osobisty
+    const finalFormData = {
+      ...formData,
+      PACZKOMAT: formData.PACZKOMAT && formData.PACZKOMAT.toString().trim() ? formData.PACZKOMAT : 'Odbiór osobisty',
+    };
+
+    // Uaktualnij lokalny stan tak, aby UI odzwierciedlało decyzję
+    setFormData(prev => ({ ...prev, PACZKOMAT: finalFormData.PACZKOMAT }));
 
     let filePath = null;
     if (formData.file) {
@@ -443,7 +490,7 @@ const Print_pricing: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          formData: formData, // Wszystkie dane formularza do zapisu
+          formData: finalFormData, // Wszystkie dane formularza do zapisu (PACZKOMAT domyślnie 'Odbiór osobisty' jeśli nie wybrano)
           priceInCents: priceInCents, // Cena brutto w groszach do Stripe
           calculatedPriceNetto: calculatedPriceNetto, // Cena netto do bazy danych
           fileName: fileName,
@@ -589,6 +636,7 @@ const Print_pricing: React.FC = () => {
                 type="file"
                 name="file"
                 onChange={handleChange}
+                accept=".dwg,.dxf,.pdf,.jpg,.jpeg,.jpe,.png,.bmp,.tiff,.ifc,.xcf,.doc,.xls"
                 className="block w-full text-sm text-gray-600 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer transition duration-150"
                 
               />
@@ -673,11 +721,23 @@ const Print_pricing: React.FC = () => {
                   </button>
                 </div>
               </div>
+              {/* Informacja: domyślny odbiór osobisty jeśli brak wyboru paczkomatu */}
+              {!formData.PACZKOMAT && (
+                <p className="mt-2 text-sm text-gray-500 flex items-center gap-5">
+                  <Info className="h-5 w-5"></Info>
+                  <span>
+                    Jeśli nie wybierzesz paczkomatu, odbiór zostanie ustawiony jako <strong>Odbiór osobisty</strong>.
+                    <br/>Alfreda Jahna 5a, 54-703 Wrocław
+                  </span>
+                </p>
+              )}
               {/* Display selected InPost paczkomat */}
               {formData.PACZKOMAT && (
                 <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
-                  <p className="text-sm font-semibold text-gray-700">Wybrany paczkomat:</p>
-                  <pre className="text-xs text-gray-600 mt-1">{formData.PACZKOMAT}</pre>
+                  <p className="text-sm font-semibold text-gray-700">Wybrany:</p>
+                  <pre className="text-xs text-gray-600 mt-1">
+                    {formData.PACZKOMAT}
+                    </pre>
                 </div>
               )}
           </FormSection>
@@ -694,6 +754,13 @@ const Print_pricing: React.FC = () => {
               <p className="text-gray-400 text-xs mt-1">
                 Netto: {calculatePrice.nettoDisplay} PLN | VAT (23%): {calculatePrice.vat.toFixed(2)} PLN
               </p>
+              {formData.PACZKOMAT && formData.PACZKOMAT.toString().trim() !== 'Odbiór osobisty' && (
+                <p className="mt-1 text-sm text-gray-700">Dostawa InPost: <strong>16,99 PLN</strong></p>
+              )}
+              {errors.price && (
+                <p className="mt-2 text-sm text-red-600 font-medium">{errors.price}</p>
+              )}
+              <p className="mt-2 text-sm text-gray-500">Uwaga: cena zamówienia może wynosić minimalnie <strong>2,00&nbsp;PLN</strong>.</p>
             </div>
 
             <button

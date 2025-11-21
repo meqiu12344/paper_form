@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { Archive, Layers, Ruler, Mail, Phone, User, Send, Check, Building, Pencil, Package } from "lucide-react";
+import { Archive, Layers, Ruler, Mail, Phone, User, Send, Check, Building, Pencil, Package, Info } from "lucide-react";
 
 
 const VAT_RATE = 0.23;
+// Opłata za dostawę InPost (brutto)
+const INPOST_FEE_BRUTTO = 16.99;
 // --- INTERFEJSY (INTERFACES) ---
 interface ScanFormData {
   format: string;
@@ -108,9 +110,9 @@ const FormSection: React.FC<FormSectionProps> = ({ title, icon: Icon, children }
       <h2 className="text-lg font-semibold">{title}</h2>
     </div>
     {children}
-      
-    </div>
-  );
+
+  </div>
+);
 
 const InputField: React.FC<InputFieldProps> = ({ label, name, type = "text", value, onChange, placeholder, icon: Icon, required = false, error, maxLength }) => (
   <div className="mb-4">
@@ -196,6 +198,24 @@ const Scan_pricing: React.FC = () => {
 
     if (type === 'file') {
       const file = (e.target as HTMLInputElement).files?.[0] || null;
+      // Dozwolone rozszerzenia
+      const allowedExt = ['.dwg', '.dxf', '.pdf', '.jpg', '.jpeg', '.jpe', '.png', '.bmp', '.tiff', '.ifc', '.xcf', '.doc', '.xls'];
+      if (file) {
+        const lowerName = file.name.toLowerCase();
+        const isAllowed = allowedExt.some(ext => lowerName.endsWith(ext));
+        if (!isAllowed) {
+          setErrors(prev => ({ ...prev, file: 'Nieprawidłowy typ pliku. Dozwolone: dwg, dxf, pdf, jpg, jpeg, jpe, png, bmp, tiff, ifc, xcf, doc, xls.' }));
+          setFormData(prev => ({ ...prev, [name]: null }));
+          setMessage({ type: 'error', text: 'Nieprawidłowy typ pliku. Proszę wybrać plik o dozwolonym rozszerzeniu.' });
+          return;
+        }
+      }
+      if (file && file.size > 10 * 1024 * 1024) {
+        setErrors(prev => ({ ...prev, file: 'Plik jest za duży (max 10MB).' }));
+        setFormData(prev => ({ ...prev, [name]: null }));
+        setMessage({ type: 'error', text: 'Plik jest za duży (max 10MB). Proszę załącz mniejszy plik.' });
+        return;
+      }
       setFormData(prev => ({ ...prev, [name]: file }));
     } else {
       setFormData(prev => ({
@@ -211,15 +231,16 @@ const Scan_pricing: React.FC = () => {
   const validate = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.PACZKOMAT) {
-      newErrors.PACZKOMAT = "Wybierz paczkomat przed wysłaniem formularza.";
-    }
 
     if (!formData.name.trim()) newErrors.name = "Imię i nazwisko jest wymagane.";
     if (!formData.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = "Wprowadź poprawny adres e-mail.";
     }
     if (formData.quantity < 1) newErrors.quantity = "Ilość musi być większa niż 0.";
+    // Minimalna cena zamówienia: 2 PLN brutto
+    if (calculatePrice.brutto < 2) {
+      newErrors.price = "Minimalna cena zamówienia to 2 PLN.";
+    }
     setErrors((prev) => ({ ...prev, ...newErrors }));
     return Object.keys(newErrors).length === 0;
   };
@@ -253,8 +274,24 @@ const Scan_pricing: React.FC = () => {
 
     // Całkowita cena netto
     const totalPriceNetto = unitPriceNetto * quantity;
-    const vatAmount = totalPriceNetto * VAT_RATE;
-    const totalPriceBrutto = totalPriceNetto + vatAmount;
+    let vatAmount = totalPriceNetto * VAT_RATE;
+    let totalPriceBrutto = totalPriceNetto + vatAmount;
+
+    // Jeśli wybrano paczkomat InPost (PACZKOMAT !== 'Odbiór osobisty' i niepuste), dolicz opłatę dostawy
+    if (formData.PACZKOMAT && formData.PACZKOMAT.toString().trim() !== 'Odbiór osobisty') {
+      const shippingBrutto = INPOST_FEE_BRUTTO;
+      const shippingNetto = shippingBrutto / (1 + VAT_RATE);
+      const shippingVat = shippingBrutto - shippingNetto;
+      totalPriceBrutto += shippingBrutto;
+      vatAmount += shippingVat;
+      const totalNettoWithShipping = totalPriceNetto + shippingNetto;
+      return {
+        netto: totalNettoWithShipping,
+        vat: vatAmount,
+        brutto: totalPriceBrutto,
+        nettoDisplay: totalNettoWithShipping.toFixed(2),
+      };
+    }
 
     return {
       netto: totalPriceNetto,
@@ -262,7 +299,7 @@ const Scan_pricing: React.FC = () => {
       brutto: totalPriceBrutto,
       nettoDisplay: totalPriceNetto.toFixed(2),
     };
-  }, [formData.format, formData.customWidth, formData.customHeight, formData.quantity, formData.material, formData.printLengthMultiplier, formData.colorOption]);
+  }, [formData.format, formData.customWidth, formData.customHeight, formData.quantity, formData.material, formData.printLengthMultiplier, formData.colorOption, formData.PACZKOMAT]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -273,6 +310,15 @@ const Scan_pricing: React.FC = () => {
     }
 
     setIsSubmitting(true);
+
+    // Jeśli nie wybrano paczkomatu, traktujemy to jako odbiór osobisty
+    const finalFormData = {
+      ...formData,
+      PACZKOMAT: formData.PACZKOMAT && formData.PACZKOMAT.toString().trim() ? formData.PACZKOMAT : 'Odbiór osobisty',
+    };
+
+    // Uaktualnij lokalny stan, aby UI od razu odzwierciedlało wybór
+    setFormData(prev => ({ ...prev, PACZKOMAT: finalFormData.PACZKOMAT }));
 
     let filePath = null;
     if (formData.file) {
@@ -316,7 +362,7 @@ const Scan_pricing: React.FC = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          formData: formData, // Wszystkie dane formularza do zapisu
+          formData: finalFormData, // Wszystkie dane formularza do zapisu (PACZKOMAT domyślnie 'Odbiór osobisty' jeśli nie wybrano)
           priceInCents: priceInCents, // Cena brutto w groszach do Stripe
           calculatedPriceNetto: calculatedPriceNetto, // Cena netto do bazy danych
           fileName: fileName,
@@ -345,52 +391,52 @@ const Scan_pricing: React.FC = () => {
   };
 
   // Make sure global handler for InPost widget is available on window
- useEffect(() => {
-  (window as any).afterPointSelectedScan = (point: any) => {
-    console.log("Selected InPost paczkomat (Scan):", point);
+  useEffect(() => {
+    (window as any).afterPointSelectedScan = (point: any) => {
+      console.log("Selected InPost paczkomat (Scan):", point);
 
-    setSelectedPaczkomat(point);
+      setSelectedPaczkomat(point);
 
-    setFormData((prev) => ({
-      ...prev,
-      PACZKOMAT: `${point.address.line1}, ${point.address.line2}`,
-    }));
+      setFormData((prev) => ({
+        ...prev,
+        PACZKOMAT: `Paczkomat: ${point.address.line1}, ${point.address.line2}`,
+      }));
 
-    setShowInpostMap(false);
-  };
+      setShowInpostMap(false);
+    };
 
-  return () => {
-    try {
-      delete (window as any).afterPointSelectedScan;
-    } catch (e) {
-      (window as any).afterPointSelectedScan = undefined;
+    return () => {
+      try {
+        delete (window as any).afterPointSelectedScan;
+      } catch (e) {
+        (window as any).afterPointSelectedScan = undefined;
+      }
+    };
+  }, []);
+
+  // Update the `onpoint` attribute in the widget
+  useEffect(() => {
+    const container = inpostContainerRef.current;
+    if (!container) return;
+
+    if (showInpostMap) {
+      if (container.querySelector('inpost-geowidget')) return;
+
+      const widget = document.createElement('inpost-geowidget');
+      widget.setAttribute('style', 'width: 100%; height: 100%;');
+      widget.setAttribute('onpoint', 'afterPointSelectedScan');
+      widget.setAttribute('token', "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJzQlpXVzFNZzVlQnpDYU1XU3JvTlBjRWFveFpXcW9Ua2FuZVB3X291LWxvIn0.eyJleHAiOjIwNDU1MDg2OTUsImlhdCI6MTczMDE0ODY5NSwianRpIjoiYmI1MzdiNWQtYzBlNi00MGUxLWE4MGYtYWU3YzQzMTI1MjhhIiwiaXNzIjoiaHR0cHM6Ly9sb2dpbi5pbnBvc3QucGwvYXV0aC9yZWFsbXMvZXh0ZXJuYWwiLCJzdWIiOiJmOjEyNDc1MDUxLTFjMDMtNGU1OS1iYTBjLTJiNDU2OTVlZjUzNTpjNUNRd0d4d3p6RjVsMzZpaTdhOUdRdlkyc0t0QU9Yb0l3em1GTlItZDFnIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoic2hpcHgiLCJzZXNzaW9uX3N0YXRlIjoiM2IwMjg4OTItMmY1Mi00YjQwLTkzZWItYWE2ODUxYjQ2OTc3Iiwic2NvcGUiOiJvcGVuaWQgYXBpOmFwaXBvaW50cyIsInNpZCI6IjNiMDI4ODkyLTJmNTItNGI0MC05M2ViLWFhNjg1MWI0Njk3NyIsImFsbG93ZWRfcmVmZXJyZXJzIjoiIiwidXVpZCI6ImRmZjVmMjYyLTZjNTEtNDhhNi05OThhLTMzMTYxZGM1ZjUzMSJ9.T0iXl4nKc8-K8cylXVNcPTMgLEjZmN-naNjXUCeM_wEJ7cslCJVvOgH4b8_Xo8QtPvNJ6-22V9V9fhP7Xu5u_IXCJzF_Vx3X0aeRZpIyZJeFwyX0YOoWqyWcVkvwS_1K7SguWmg_gj4zgvshbgSDmDAmaku_khr8WNLuBNyvMsbwXEGnzV668DuER8V8dkQWBeU0gNZtAtZjIVqjsiWs8E4gYgmLkFOCEEach45fnM1mMDInDRmkKGdYV2FKfLwGaX-Ay0cr2Iyh2JDyxwoeVNrQru8mI41_zjHcz34zlFRMpuAQZAZGLfeJyJfXily0S1ehdqjhSfC_IEVFn6aUyQ");
+      widget.setAttribute('language', 'pl');
+      widget.setAttribute('config', 'parcelCollect');
+      container.appendChild(widget);
+    } else {
+      container.innerHTML = '';
     }
-  };
-}, []);
 
-// Update the `onpoint` attribute in the widget
-useEffect(() => {
-  const container = inpostContainerRef.current;
-  if (!container) return;
-
-  if (showInpostMap) {
-    if (container.querySelector('inpost-geowidget')) return;
-
-    const widget = document.createElement('inpost-geowidget');
-    widget.setAttribute('style', 'width: 100%; height: 100%;');
-    widget.setAttribute('onpoint', 'afterPointSelectedScan');
-    widget.setAttribute('token', "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJzQlpXVzFNZzVlQnpDYU1XU3JvTlBjRWFveFpXcW9Ua2FuZVB3X291LWxvIn0.eyJleHAiOjIwNDU1MDg2OTUsImlhdCI6MTczMDE0ODY5NSwianRpIjoiYmI1MzdiNWQtYzBlNi00MGUxLWE4MGYtYWU3YzQzMTI1MjhhIiwiaXNzIjoiaHR0cHM6Ly9sb2dpbi5pbnBvc3QucGwvYXV0aC9yZWFsbXMvZXh0ZXJuYWwiLCJzdWIiOiJmOjEyNDc1MDUxLTFjMDMtNGU1OS1iYTBjLTJiNDU2OTVlZjUzNTpjNUNRd0d4d3p6RjVsMzZpaTdhOUdRdlkyc0t0QU9Yb0l3em1GTlItZDFnIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoic2hpcHgiLCJzZXNzaW9uX3N0YXRlIjoiM2IwMjg4OTItMmY1Mi00YjQwLTkzZWItYWE2ODUxYjQ2OTc3Iiwic2NvcGUiOiJvcGVuaWQgYXBpOmFwaXBvaW50cyIsInNpZCI6IjNiMDI4ODkyLTJmNTItNGI0MC05M2ViLWFhNjg1MWI0Njk3NyIsImFsbG93ZWRfcmVmZXJyZXJzIjoiIiwidXVpZCI6ImRmZjVmMjYyLTZjNTEtNDhhNi05OThhLTMzMTYxZGM1ZjUzMSJ9.T0iXl4nKc8-K8cylXVNcPTMgLEjZmN-naNjXUCeM_wEJ7cslCJVvOgH4b8_Xo8QtPvNJ6-22V9V9fhP7Xu5u_IXCJzF_Vx3X0aeRZpIyZJeFwyX0YOoWqyWcVkvwS_1K7SguWmg_gj4zgvshbgSDmDAmaku_khr8WNLuBNyvMsbwXEGnzV668DuER8V8dkQWBeU0gNZtAtZjIVqjsiWs8E4gYgmLkFOCEEach45fnM1mMDInDRmkKGdYV2FKfLwGaX-Ay0cr2Iyh2JDyxwoeVNrQru8mI41_zjHcz34zlFRMpuAQZAZGLfeJyJfXily0S1ehdqjhSfC_IEVFn6aUyQ");
-    widget.setAttribute('language', 'pl');
-    widget.setAttribute('config', 'parcelCollect');
-    container.appendChild(widget);
-  } else {
-    container.innerHTML = '';
-  }
-
-  return () => {
-    if (container) container.innerHTML = '';
-  };
-}, [showInpostMap]);
+    return () => {
+      if (container) container.innerHTML = '';
+    };
+  }, [showInpostMap]);
 
 
   return (
@@ -458,6 +504,7 @@ useEffect(() => {
                 type="file"
                 name="file"
                 onChange={handleChange}
+                accept=".dwg,.dxf,.pdf,.jpg,.jpeg,.jpe,.png,.bmp,.tiff,.ifc,.xcf,.doc,.xls"
                 className="block w-full text-sm text-gray-600 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100 cursor-pointer transition duration-150"
               />
               {formData.file && (
@@ -539,10 +586,22 @@ useEffect(() => {
               </div>
             </div>
 
+            {/* Informacja: domyślny odbiór osobisty jeśli brak wyboru paczkomatu */}
+            {!formData.PACZKOMAT && (
+
+              <p className="mt-2 text-sm text-gray-500 flex items-center gap-5">
+                <Info className="h-5 w-5"></Info>
+                <span>
+                  Jeśli nie wybierzesz paczkomatu, odbiór zostanie ustawiony jako <strong>Odbiór osobisty</strong>.
+                  <br />Alfreda Jahna 5a, 54-703 Wrocław
+                </span>
+              </p>
+            )}
+
             {/* Display selected InPost paczkomat */}
             {formData.PACZKOMAT && (
               <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
-                <p className="text-sm font-semibold text-gray-700">Wybrany paczkomat:</p>
+                <p className="text-sm font-semibold text-gray-700">Wybrany:</p>
                 <pre className="text-xs text-gray-600 mt-1">{formData.PACZKOMAT}</pre>
               </div>
             )}
@@ -560,6 +619,13 @@ useEffect(() => {
               <p className="text-gray-400 text-xs mt-1">
                 Netto: {calculatePrice.nettoDisplay} PLN | VAT (23%): {calculatePrice.vat.toFixed(2)} PLN
               </p>
+              {formData.PACZKOMAT && formData.PACZKOMAT.toString().trim() !== 'Odbiór osobisty' && (
+                <p className="mt-1 text-sm text-gray-700">Dostawa InPost: <strong>16,99 PLN</strong></p>
+              )}
+              {errors.price && (
+                <p className="mt-2 text-sm text-red-600 font-medium">{errors.price}</p>
+              )}
+              <p className="mt-2 text-sm text-gray-500">Uwaga: cena zamówienia może wynosić minimalnie <strong>2,00&nbsp;PLN</strong>.</p>
             </div>
 
             <button
@@ -579,7 +645,7 @@ useEffect(() => {
                 </>
               )}
             </button>
-          
+
           </div>
         </form>
       </div>

@@ -33,7 +33,8 @@ export default function Hero() {
           transition={{ duration: 0.8 }}
           className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-6 drop-shadow-lg"
         >
-          Profesjonalny Druk Wielkoformatowy
+          PROFESJONALNY DRUK / SKAN
+          <br/> FORMAT A0+
         </motion.h1>
 
         <motion.p
@@ -42,8 +43,7 @@ export default function Hero() {
           transition={{ duration: 1, delay: 0.3 }}
           className="text-lg sm:text-xl md:text-2xl text-indigo-100 max-w-2xl mx-auto mb-8"
         >
-          Banery, plakaty, folie i wydruki reklamowe – zamów online z dostawą w
-          24h w całej Polsce.
+          Wydruki rysunków technicznych, plakatów, reklam na papierze, foliach, tekstyliach.
         </motion.p>
 
         <div className="flex center-center gap-10 m-auto max-w-md justify-center">

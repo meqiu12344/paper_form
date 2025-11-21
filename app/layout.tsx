@@ -13,6 +13,9 @@ export const metadata: Metadata = {
   description: 'Zamów wydruk wielkoformatowy (A0, A1, B1, niestandardowe). Użyj prostego kalkulatora do wyceny i przesłania pliku online. Szybka realizacja, wysoka jakość.',
 };
 
+import Footer from './components/Footer';
+import Header from './components/Header';
+
 interface RootLayoutProps {
   children: React.ReactNode;
 }
@@ -26,7 +29,11 @@ export default function RootLayout({ children }: RootLayoutProps) {
         <script src='https://geowidget.inpost.pl/inpost-geowidget.js' defer></script>
       </head>
       {/* Dodanie klasy czcionki do body dla globalnego użycia */}
-      <body className={inter.className}>{children}</body>
+      <body className={inter.className}>
+        <Header />
+        {children}
+        <Footer />
+      </body>
       
     </html>
   );

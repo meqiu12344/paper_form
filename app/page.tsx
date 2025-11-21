@@ -22,7 +22,7 @@ export default function Page() {
         <section id="formularz-drukowania" className="">
           <Print_pricing />
         </section>
-        <section id="formilarz-skanowania" className="">
+        <section id="formularz-skanowania" className="">
           <Scan_pricing />
         </section>
         {/* Polityka i regulamin */}
