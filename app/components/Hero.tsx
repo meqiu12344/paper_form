@@ -56,7 +56,7 @@ export default function Hero() {
           </motion.a>
 
           <motion.a
-            href="#formilarz-skanowania"
+            href="#formularz-skanowania"
             whileHover={{ scale: 1.05 }}
             className="inline-block border-4 border-white text-white font-semibold px-6 py-3 rounded-full transition"
           >
