@@ -20,7 +20,7 @@ const Header: React.FC = () => {
               </svg>
             </span>
             <div className="hidden sm:block">
-              <div className="text-lg font-bold text-gray-900">Twoja Marka</div>
+              <div className="text-lg font-bold text-gray-900">Drukarnia XYZ</div>
               <div className="text-xs text-gray-500">Druk · Skan · Usługi</div>
             </div>
           </Link>
