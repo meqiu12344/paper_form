@@ -31,13 +31,13 @@ export default function PrivacyPolicyPage() {
                     <div>
                         <SectionTitle>1. Administrator danych</SectionTitle>
                         <Paragraph>
-                            Administratorem danych osobowych jest: <strong>[Nazwa firmy / właściciela]</strong> (dalej: "Administrator").
+                            Administratorem danych osobowych jest: <strong>CAD Project Adam Wieczorkowski</strong> (dalej: "Administrator").
                         </Paragraph>
                         <Paragraph>
-                            Adres: <strong>[ulica i numer, kod pocztowy, miejscowość]</strong>
+                            Adres: <strong>ul. Alfreda Jahna 5 54-703 Wrocław</strong>
                         </Paragraph>
                         <Paragraph>
-                            Kontakt e-mail: <strong><a className="text-indigo-600" href="mailto:biuro@twojafirma.pl">biuro@twojafirma.pl</a></strong>
+                            Kontakt e-mail: <strong><a className="text-indigo-600" href="mailto:biuro@twojafirma.pl">biuro@drukarniaxyz.pl</a></strong>
                         </Paragraph>
 
                         <SectionTitle>2. Zakres stosowania polityki</SectionTitle>
@@ -118,7 +118,7 @@ export default function PrivacyPolicyPage() {
                             <li>prawo do wycofania zgody w dowolnym czasie (jeżeli przetwarzanie opiera się na zgodzie) — wycofanie zgody nie wpływa na zgodność z prawem przetwarzania dokonanego przed jej wycofaniem.</li>
                         </List>
                         <Paragraph>
-                            W celu wykonania praw prosimy o kontakt na adres e-mail: <strong><a className="text-indigo-600" href="mailto:biuro@twojafirma.pl">biuro@twojafirma.pl</a></strong>.
+                            W celu wykonania praw prosimy o kontakt na adres e-mail: <strong><a className="text-indigo-600" href="mailto:biuro@twojafirma.pl">biuro@drukarniaxyz.pl</a></strong>.
                         </Paragraph>
                         <Paragraph>
                             Jeżeli uważasz, że przetwarzanie Twoich danych osobowych narusza przepisy, masz prawo wniesienia skargi do Prezesa Urzędu Ochrony Danych Osobowych (UODO).
@@ -164,10 +164,10 @@ export default function PrivacyPolicyPage() {
                             wysłanie informacji na adres e-mail, jeśli jest to wymagane prawnie lub praktycznie.
                         </Paragraph>
                         <Paragraph>
-                            Aktualna wersja polityki prywatności obowiązuje od: <strong>21 listopada 2025 r.</strong>
+                            Aktualna wersja polityki prywatności obowiązuje od: <strong>23 listopada 2025 r.</strong>
                         </Paragraph>
                         <Paragraph>
-                            Jeżeli chcesz otrzymać więcej informacji lub zgłosić sprawę dotyczącą przetwarzania danych, skontaktuj się: <strong><a className="text-indigo-600" href="mailto:biuro@twojafirma.pl">biuro@twojafirma.pl</a></strong>.
+                            Jeżeli chcesz otrzymać więcej informacji lub zgłosić sprawę dotyczącą przetwarzania danych, skontaktuj się: <strong><a className="text-indigo-600" href="mailto:biuro@twojafirma.pl">biuro@drukarniaxyz.pl</a></strong>.
                         </Paragraph>
                     </div>
                 </div>
