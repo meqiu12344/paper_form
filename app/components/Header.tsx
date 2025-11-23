@@ -12,16 +12,12 @@ const Header: React.FC = () => {
         <div className="flex justify-between items-center py-4">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3">
-            <span className="inline-flex items-center justify-center w-10 h-10 rounded-md bg-indigo-600 text-white shadow">
-              {/* Simple SVG mark */}
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 12h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M3 6h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" />
-              </svg>
+            <span className="inline-flex items-center justify-center rounded-md">
+                <img src="./short-logo-drukarnia.png" alt="Drukarnia XYZ Logo" className="w-14 h-15" />
             </span>
             <div className="hidden sm:block">
-              <div className="text-lg font-bold text-gray-900">Drukarnia XYZ</div>
-              <div className="text-xs text-gray-500">Druk · Skan · Usługi</div>
+              <h1 className="text-lg font-bold text-gray-900">DrukarniaXYZ.pl</h1>
+              <div className="text-xs text-red-700">CAD Project</div>
             </div>
           </Link>
 
@@ -30,7 +26,7 @@ const Header: React.FC = () => {
             <Link href="/" className="text-gray-700 hover:text-indigo-600">Strona główna</Link>
             <Link href="#formularz-drukowania" className="text-gray-700 hover:text-indigo-600">Druk</Link>
             <Link href="#formularz-skanowania" className="text-gray-700 hover:text-indigo-600">Skan</Link>
-            <Link href="tel:730496403" className="bg-blue-700 p-3 rounded-2xl text-white">Zadźwoń</Link>
+            <Link href="tel:730496403" className="bg-blue-700 p-3 rounded-2xl text-white">Zadzwoń</Link>
           </nav>
 
           {/* Mobile menu button */}
@@ -59,7 +55,7 @@ const Header: React.FC = () => {
             <Link href="/" className="text-gray-700 hover:text-indigo-600">Strona główna</Link>
             <Link href="#formularz-drukowania" className="text-gray-700 hover:text-indigo-600">Druk</Link>
             <Link href="#formularz-skanowania" className="text-gray-700 hover:text-indigo-600">Skan</Link>
-            <Link href="tel:730496403" className="bg-blue-700 p-3 rounded-2xl text-white">Zadźwoń</Link>
+            <Link href="tel:730496403" className="bg-blue-700 p-3 rounded-2xl text-white">Zadzwoń</Link>
           </div>
         </div>
       )}

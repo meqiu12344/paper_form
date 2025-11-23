@@ -25,7 +25,7 @@ export default function LoadingScreen() {
             transition={{ duration: 0.6 }}
             className="text-3xl font-bold mb-4"
           >
-            Drukarnia XYZ
+            <img src="./full-logo-drukarnia.png" alt="Drukarnia XYZ Logo" className="w-120 h-40 mx-auto mb-2" />
           </motion.h1>
 
           <motion.div

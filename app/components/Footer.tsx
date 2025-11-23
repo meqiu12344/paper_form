@@ -9,9 +9,10 @@ const Footer: React.FC = () => {
     <footer className="bg-gray-900 text-gray-200">
       <div className="max-w-7xl mx-auto px-6 py-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div>
-            <h3 className="text-xl font-semibold text-white">Drukarnia XYZ</h3>
-            <p className="mt-3 text-sm text-gray-300 max-w-sm">Profesjonalne usługi druku wielkoformatowego i skanowania dokumentów. Szybko, dokładnie i z dbałością o szczegóły.</p>
+          <div className='w-full text-center flex justify-center flex-col items-center'>
+            <h3 className="text-xl font-semibold text-white">
+                <img src="./full-logo-drukarnia.png" alt="Drukarnia XYZ Logo" className="w-[70%] h-auto inline-block mr-2" />
+            </h3>
             {/* <div className="mt-4 flex items-center gap-3">
               <a href="#" aria-label="facebook" className="w-9 h-9 rounded-full bg-white/8 hover:bg-white/12 flex items-center justify-center transition">
                 <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M22 12.07C22 6.48 17.52 2 11.93 2S2 6.48 2 12.07C2 17.09 5.66 21.22 10.44 22v-7.02H7.9v-2.9h2.54V9.33c0-2.5 1.49-3.88 3.77-3.88 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56v1.87h2.78l-.44 2.9h-2.34V22C18.34 21.22 22 17.09 22 12.07z"/></svg>
@@ -25,7 +26,7 @@ const Footer: React.FC = () => {
             </div> */}
           </div>
 
-          <div>
+          <div className='w-full text-center'>
             <h4 className="text-lg font-semibold text-white">Szybkie linki</h4>
             <ul className="mt-4 space-y-2 text-sm text-gray-300">
               <li><a href="/" className="hover:text-white">Strona główna</a></li>
@@ -35,7 +36,7 @@ const Footer: React.FC = () => {
             </ul>
           </div>
 
-          <div>
+          <div className="w-full text-center">
             <h4 className="text-lg font-semibold text-white">Kontakt</h4>
             <p className="mt-4 text-sm text-gray-300">ul. Alfreda Jahna 5<br/>54-703 Wrocław</p>
             <p className="mt-3 text-sm text-gray-300">Telefon: <a href="tel:+48123123123" className="hover:text-white">+48 123 123 123</a></p>
