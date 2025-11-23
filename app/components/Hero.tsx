@@ -12,12 +12,12 @@ export default function Hero() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 1 }}
-      className="relative h-[60vh] flex items-center justify-center text-center text-white overflow-hidden"
+      className="relative h-[70vh] flex items-center justify-center text-center text-white overflow-hidden"
     >
       {/* --- Tło parallax --- */}
       <motion.div style={{ y }} className="absolute inset-0">
         <Image
-          src="/hero.jpg" // upewnij się, że plik jest w public/
+          src="/hero1.jpg"
           alt="Drukarnia wielkoformatowa"
           fill
           className="object-cover brightness-50"
@@ -33,8 +33,7 @@ export default function Hero() {
           transition={{ duration: 0.8 }}
           className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-6 drop-shadow-lg"
         >
-          PROFESJONALNY DRUK / SKAN
-          <br/> FORMAT A0+
+          PROFESJONALNY DRUK / SKAN FORMAT A0+
         </motion.h1>
 
         <motion.p

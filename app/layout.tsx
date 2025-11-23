@@ -27,6 +27,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
       <head>
         <link rel="stylesheet" href="https://geowidget.inpost.pl/inpost-geowidget.css" />
         <script src='https://geowidget.inpost.pl/inpost-geowidget.js' defer></script>
+        <link rel="shortcut icon" href="/favicon.ico" sizes="any" />
       </head>
       {/* Dodanie klasy czcionki do body dla globalnego użycia */}
       <body className={inter.className}>
