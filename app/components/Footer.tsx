@@ -27,7 +27,7 @@ const Footer: React.FC = () => {
           </div>
 
           <div className='w-full text-center'>
-            <h4 className="text-lg font-semibold text-white">Szybkie linki</h4>
+            <h4 className="text-lg font-semibold text-white">Skróty</h4>
             <ul className="mt-4 space-y-2 text-sm text-gray-300">
               <li><a href="/" className="hover:text-white">Strona główna</a></li>
               <li><a href="/checkout" className="hover:text-white">Zmów druk</a></li>
@@ -38,7 +38,7 @@ const Footer: React.FC = () => {
 
           <div className="w-full text-center">
             <h4 className="text-lg font-semibold text-white">Kontakt</h4>
-            <p className="mt-4 text-sm text-gray-300">ul. Alfreda Jahna 5<br/>54-703 Wrocław</p>
+            <p className="mt-4 text-sm text-gray-300">ul. Alfreda Jahna 5,<br/>54-703 Wrocław</p>
             <p className="mt-3 text-sm text-gray-300">Telefon: <a href="tel:+48123123123" className="hover:text-white">+48 123 123 123</a></p>
             <p className="mt-1 text-sm text-gray-300">E-mail: <a href="mailto:biuro@twojafirma.pl" className="hover:text-white">biuro@drukarniaxyz.pl</a></p>
           </div>
