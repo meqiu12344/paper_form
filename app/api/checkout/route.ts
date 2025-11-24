@@ -70,7 +70,7 @@ export async function POST(req: Request) {
 
     // 4. Utwórz sesję Stripe Checkout
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card", "p24", "blik"],
+      payment_method_types: ["card", "blik"],
       customer_email: formData.email,
       line_items: [
         {
