@@ -3,6 +3,7 @@ import LoadingScreen from "./components/LoadingScreen"; // klient
 import Why_us from "./components/why_us";
 import Print_pricing from "./components/print_pricing";
 import Scan_pricing from "./components/scan_pricing";
+import Copy_pricing from "./components/copy_pricing";
 // Import nowego komponentu klienckiego
 import PrivacyPopup from "./components/PrivacyPopup"; 
 
@@ -24,6 +25,9 @@ export default function Page() {
         </section>
         <section id="formularz-skanowania" className="">
           <Scan_pricing />
+        </section>
+        <section id="formularz-kopii" className="">
+          <Copy_pricing />
         </section>
         {/* Polityka i regulamin */}
       </main>

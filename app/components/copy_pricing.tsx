@@ -1,22 +1,20 @@
 "use client";
 
 import React, { useState, useMemo, useEffect, useRef } from "react";
-import { Archive, Layers, Ruler, Mail, Phone, User, Send, Check, Info } from "lucide-react";
-// Usunięto import createClient z Supabase, ponieważ używamy go tylko w route.ts i verify-payment.ts
-// import { createClient } from "@supabase/supabase-js"; 
+import { Archive, Layers, Ruler, Mail, Phone, User, Send, Check, Info, Copy } from "lucide-react";
 
 // Stała dla VAT (używamy 23% dla polskiego standardu)
 const VAT_RATE = 0.23;
 // Opłata za dostawę InPost (brutto)
 const INPOST_FEE_BRUTTO = 16.99;
-// Dodatkowa opłata za zamówienie kopii (brutto) na arkusz
-const COPY_SURCHARGE_BRUTTO = 2.0;
+// Dodatkowa opłata za kopię (ksero) - 2 zł za arkusz
+const COPY_FEE_PER_SHEET = 2.0;
 
 // --- INTERFACES ---
 interface FormData {
   format: string;
   quantity: number;
-  colorOption: string; // ID opcji koloru
+  colorOption: string;
   name: string;
   email: string;
   phone: string;
@@ -24,12 +22,10 @@ interface FormData {
   NIP: string;
   REGON: string;
   TYPE: string;
-
-  // Pola Specyficzne dla 'FormData' (opcjonalne w ogólnym kontekście)
   customWidth?: string; 
   customHeight?: string;
-  material?: string; // ID materiału/nośnika
-  printLengthMultiplier?: string; // Mnożnik dla wydruku z rolki
+  material?: string;
+  printLengthMultiplier?: string;
   finishes?: string[];
   PACZKOMAT?: string;
 }
@@ -70,9 +66,9 @@ interface SelectFieldProps {
 interface PriceItem {
   id: string;
   label: string;
-  width: number; // width in mm
-  height: number; // height in mm
-  price_pln_netto: number; // base price netto (from CSV)
+  width: number;
+  height: number;
+  price_pln_netto: number;
 }
 
 interface MaterialItem {
@@ -88,7 +84,6 @@ interface LengthMultiplierItem {
   description: string;
 }
 
-// NEW: Color options interface
 interface ColorItem {
   id: string;
   label: string;
@@ -102,37 +97,30 @@ interface PriceDetails {
     nettoDisplay: string;
 }
 
-// --- DANE (CENNIK Z CSV) ---
-
-// Zaktualizowany cennik bazowy dla formatów A i B
+// --- DANE (CENNIK) ---
 const FORMATS: PriceItem[] = [
-  // Formaty A
   { id: "A4", label: "A4 (297x210 mm)", width: 210, height: 297, price_pln_netto: 2.44 },
   { id: "A3", label: "A3 (420x297 mm)", width: 297, height: 420, price_pln_netto: 4.88 },
   { id: "A2", label: "A2 (594x420 mm)", width: 420, height: 594, price_pln_netto: 6.50 },
   { id: "A1", label: "A1 (841x594 mm)", width: 594, height: 841, price_pln_netto: 9.76 },
   { id: "A0", label: "A0 (1189x841 mm)", width: 841, height: 1189, price_pln_netto: 12.20 },
   { id: "A0_PLUS", label: "A0+ (1292x914 mm)", width: 914, height: 1292, price_pln_netto: 13.82 },
-  // Formaty B (Dodane na podstawie cennika)
   { id: "B4", label: "B4 (353x250 mm)", width: 250, height: 353, price_pln_netto: 2.93 },
   { id: "B3", label: "B3 (500x353 mm)", width: 353, height: 500, price_pln_netto: 5.86 },
   { id: "B2", label: "B2 (707x500 mm)", width: 500, height: 707, price_pln_netto: 7.80 },
   { id: "B1", label: "B1 (1000x707 mm)", width: 707, height: 1000, price_pln_netto: 11.71 },
   { id: "B0", label: "B0 (1414x1000 mm)", width: 1000, height: 1414, price_pln_netto: 16.58 },
-
   { id: "CUSTOM", label: "Własny rozmiar", width: 0, height: 0, price_pln_netto: 0 },
 ];
 
-// Materiały/Nośniki (Zastosowanie i Nośnik z CSV)
 const MATERIALS: MaterialItem[] = [
-  { id: "Rys. Techniczny / Papier standardowy 80g/m²", label: "Rys. Techniczny / Papier standardowy 80g/m²", price_multiplier: 1.0 }, // CENA = x1
-  { id: "Plakat / Papier powlekany 180g/m²", label: "Plakat / Papier powlekany 180g/m²", price_multiplier: 2.0 }, // CENA = x2
-  { id: "Fotografia / Papier fotograficzny Satyna/Perła 260g/m²", label: "Fotografia / Papier fotograficzny Satyna/Perła 260g/m²", price_multiplier: 3.0 }, // Przyjmuję x3 na podstawie ceny PLAKAT A0/P.KOLOR A0 vs CAD A0
+  { id: "Rys. Techniczny / Papier standardowy 80g/m²", label: "Rys. Techniczny / Papier standardowy 80g/m²", price_multiplier: 1.0 },
+  { id: "Plakat / Papier powlekany 180g/m²", label: "Plakat / Papier powlekany 180g/m²", price_multiplier: 2.0 },
+  { id: "Fotografia / Papier fotograficzny Satyna/Perła 260g/m²", label: "Fotografia / Papier fotograficzny Satyna/Perła 260g/m²", price_multiplier: 3.0 },
 ];
 
-// Mnożniki długości wydruku z rolki (DŁUŻSZY BOK x1...x6 z CSV)
 const LENGTH_MULTIPLIERS: LengthMultiplierItem[] = [
-  { id: "x1", label: "Długość x1 (standard)", multiplier: 1, description: "Standardowa długość formatu (np. A0)" },
+  { id: "x1", label: "Długość x1 (standard)", multiplier: 1, description: "Standardowa długość formatu" },
   { id: "x2", label: "Długość x2 (druk z rolki)", multiplier: 2, description: "Wielokrotność formatu x2" },
   { id: "x3", label: "Długość x3 (druk z rolki)", multiplier: 3, description: "Wielokrotność formatu x3" },
   { id: "x4", label: "Długość x4 (druk z rolki)", multiplier: 4, description: "Wielokrotność formatu x4" },
@@ -140,7 +128,6 @@ const LENGTH_MULTIPLIERS: LengthMultiplierItem[] = [
   { id: "x6", label: "Długość x6 (druk z rolki)", multiplier: 6, description: "Wielokrotność formatu x6" },
 ];
 
-// NEW: Lista kolorów z mnożnikami cenowymi
 const COLOR_OPTIONS: ColorItem[] = [
   { id: "1. DRUK CZARNO-BIAŁY, DO 10% POW. ZADRUKU", label: "DRUK CZARNO-BIAŁY, DO 10% POW. ZADRUKU", multiplier: 1.0 },
   { id: "2. DRUK CZARNO-BIAŁY, DO 50% POW. ZADRUKU", label: "DRUK CZARNO-BIAŁY, DO 50% POW. ZADRUKU", multiplier: 2.0 },
@@ -151,10 +138,9 @@ const COLOR_OPTIONS: ColorItem[] = [
 ];
 
 // --- KOMPONENTY POMOCNICZE ---
-
 const FormSection: React.FC<FormSectionProps> = ({ title, icon: Icon, children }) => (
   <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 mb-6">
-    <div className="flex items-center text-indigo-600 mb-4 border-b pb-3">
+    <div className="flex items-center text-orange-600 mb-4 border-b pb-3">
       <Icon className="w-5 h-5 mr-3" />
       <h2 className="text-lg font-semibold">{title}</h2>
     </div>
@@ -182,7 +168,7 @@ const InputField: React.FC<InputFieldProps> = ({ label, name, type = "text", val
         placeholder={placeholder}
         maxLength={maxLength}
         required={required}
-        className={`block w-full rounded-lg border ${error ? 'border-red-500' : 'border-gray-300'} py-2.5 ${Icon ? 'pl-10' : 'pl-3'} pr-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 sm:text-sm`}
+        className={`block w-full rounded-lg border ${error ? 'border-red-500' : 'border-gray-300'} py-2.5 ${Icon ? 'pl-10' : 'pl-3'} pr-3 focus:outline-none focus:ring-orange-500 focus:border-orange-500 transition duration-150 sm:text-sm`}
       />
     </div>
     {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
@@ -200,7 +186,7 @@ const SelectField: React.FC<SelectFieldProps> = ({ label, name, value, onChange,
       value={value}
       onChange={onChange}
       required={required}
-      className="mt-1 block w-full pl-3 pr-10 py-2.5 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-lg shadow-sm transition duration-150"
+      className="mt-1 block w-full pl-3 pr-10 py-2.5 text-base border-gray-300 focus:outline-none focus:ring-orange-500 focus:border-orange-500 sm:text-sm rounded-lg shadow-sm transition duration-150"
     >
       {options.map((option) => (
         <option key={option.value} value={option.value}>
@@ -212,15 +198,14 @@ const SelectField: React.FC<SelectFieldProps> = ({ label, name, value, onChange,
 );
 
 // --- KOMPONENT GŁÓWNY ---
-
-const Print_pricing: React.FC = () => {
+const Copy_pricing: React.FC = () => {
   const initialData: FormData = {
     format: "A4",
     customWidth: "",
     customHeight: "",
     quantity: 1,
-    material: "STANDARD_80",
-    colorOption: "1", 
+    material: "Rys. Techniczny / Papier standardowy 80g/m²",
+    colorOption: "1. DRUK CZARNO-BIAŁY, DO 10% POW. ZADRUKU", 
     printLengthMultiplier: "x1",
     finishes: [],
     name: "",
@@ -229,7 +214,7 @@ const Print_pricing: React.FC = () => {
     file: null,
     NIP: "",
     REGON: "",
-    TYPE: "PRINT",
+    TYPE: "COPY",
     PACZKOMAT: "",
   };
 
@@ -246,8 +231,6 @@ const Print_pricing: React.FC = () => {
 
     if (type === 'file') {
       const file = (e.target as HTMLInputElement).files?.[0] || null;
-      // Prosta walidacja rozmiaru pliku (max 10MB)
-      // Dozwolone rozszerzenia
       const allowedExt = ['.dwg','.dxf','.pdf','.jpg','.jpeg','.jpe','.png','.bmp','.tiff','.ifc','.xcf','.doc','.xls'];
       if (file) {
         const lowerName = file.name.toLowerCase();
@@ -277,16 +260,6 @@ const Print_pricing: React.FC = () => {
     setMessage(null);
   };
 
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { value, checked } = e.target;
-    setFormData(prev => {
-      const newFinishes = checked
-        ? [...(prev.finishes ?? []), value]
-        : (prev.finishes ?? []).filter(f => f !== value);
-      return { ...prev, finishes: newFinishes };
-    });
-  };
-
   const validate = () => {
     const newErrors: Record<string, string> = {};
     if (!formData.name.trim()) newErrors.name = "Imię i nazwisko jest wymagane.";
@@ -298,10 +271,7 @@ const Print_pricing: React.FC = () => {
       if (!formData.customHeight || parseFloat(formData.customHeight) <= 0) newErrors.customHeight = "Podaj poprawną wysokość (mm).";
     }
     if (formData.quantity < 1) newErrors.quantity = "Ilość musi być większa niż 0.";
-    // Walidacja, czy wybrano plik (jeśli jest to wymagane)
-    // if (!formData.file) newErrors.file = "Załącz plik do wydruku.";
 
-    // Minimalna cena zamówienia: 2 PLN brutto
     if (calculatePrice.brutto < 2) {
       newErrors.price = "Minimalna cena zamówienia to 2 PLN.";
     }
@@ -310,31 +280,26 @@ const Print_pricing: React.FC = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  // Make sure global handler for InPost widget is available on window
- useEffect(() => {
-  (window as any).afterPointSelectedPrint = (point: any) => {
-    console.log("Selected InPost paczkomat (Print):", point);
+  useEffect(() => {
+    (window as any).afterPointSelectedCopy = (point: any) => {
+      console.log("Selected InPost paczkomat (Copy):", point);
+      setSelectedPaczkomat(point);
+      setFormData((prev) => ({
+        ...prev,
+        PACZKOMAT: `${point.address.line1}, ${point.address.line2}`,
+      }));
+      setShowInpostMap(false);
+    };
 
-    setSelectedPaczkomat(point);
+    return () => {
+      try {
+        delete (window as any).afterPointSelectedCopy;
+      } catch (e) {
+        (window as any).afterPointSelectedCopy = undefined;
+      }
+    };
+  }, []);
 
-    setFormData((prev) => ({
-      ...prev,
-      PACZKOMAT: `${point.address.line1}, ${point.address.line2}`,
-    }));
-
-    setShowInpostMap(false);
-  };
-
-  return () => {
-    try {
-      delete (window as any).afterPointSelectedPrint;
-    } catch (e) {
-      (window as any).afterPointSelectedPrint = undefined;
-    }
-  };
-}, []);
-
-  // Mount / unmount the inpost widget dynamically when modal is opened
   useEffect(() => {
     const container = inpostContainerRef.current;
     if (!container) return;
@@ -344,7 +309,7 @@ const Print_pricing: React.FC = () => {
 
       const widget = document.createElement('inpost-geowidget');
       widget.setAttribute('style', 'width: 100%; height: 100%;');
-      widget.setAttribute('onpoint', 'afterPointSelectedPrint');
+      widget.setAttribute('onpoint', 'afterPointSelectedCopy');
       widget.setAttribute('token', "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJzQlpXVzFNZzVlQnpDYU1XU3JvTlBjRWFveFpXcW9Ua2FuZVB3X291LWxvIn0.eyJleHAiOjIwNDU1MDg2OTUsImlhdCI6MTczMDE0ODY5NSwianRpIjoiYmI1MzdiNWQtYzBlNi00MGUxLWE4MGYtYWU3YzQzMTI1MjhhIiwiaXNzIjoiaHR0cHM6Ly9sb2dpbi5pbnBvc3QucGwvYXV0aC9yZWFsbXMvZXh0ZXJuYWwiLCJzdWIiOiJmOjEyNDc1MDUxLTFjMDMtNGU1OS1iYTBjLTJiNDU2OTVlZjUzNTpjNUNRd0d4d3p6RjVsMzZpaTdhOUdRdlkyc0t0QU9Yb0l3em1GTlItZDFnIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoic2hpcHgiLCJzZXNzaW9uX3N0YXRlIjoiM2IwMjg4OTItMmY1Mi00YjQwLTkzZWItYWE2ODUxYjQ2OTc3Iiwic2NvcGUiOiJvcGVuaWQgYXBpOmFwaXBvaW50cyIsInNpZCI6IjNiMDI4ODkyLTJmNTItNGI0MC05M2ViLWFhNjg1MWI0Njk3NyIsImFsbG93ZWRfcmVmZXJyZXJzIjoiIiwidXVpZCI6ImRmZjVmMjYyLTZjNTEtNDhhNi05OThhLTMzMTYxZGM1ZjUzMSJ9.T0iXl4nKc8-K8cylXVNcPTMgLEjZmN-naNjXUCeM_wEJ7cslCJVvOgH4b8_Xo8QtPvNJ6-22V9V9fhP7Xu5u_IXCJzF_Vx3X0aeRZpIyZJeFwyX0YOoWqyWcVkvwS_1K7SguWmg_gj4zgvshbgSDmDAmaku_khr8WNLuBNyvMsbwXEGnzV668DuER8V8dkQWBeU0gNZtAtZjIVqjsiWs8E4gYgmLkFOCEEach45fnM1mMDInDRmkKGdYV2FKfLwGaX-Ay0cr2Iyh2JDyxwoeVNrQru8mI41_zjHcz34zlFRMpuAQZAZGLfeJyJfXily0S1ehdqjhSfC_IEVFn6aUyQ");
       widget.setAttribute('language', 'pl');
       widget.setAttribute('config', 'parcelCollect');
@@ -358,7 +323,6 @@ const Print_pricing: React.FC = () => {
     };
   }, [showInpostMap]);
 
-  // Zaktualizowana funkcja obliczająca cenę, zwracająca obiekt PriceDetails
   const calculatePrice = useMemo<PriceDetails>(() => {
     const quantity = formData.quantity || 1;
     const selectedFormat = FORMATS.find(f => f.id === formData.format);
@@ -374,51 +338,40 @@ const Print_pricing: React.FC = () => {
       const customWidth = parseFloat(formData.customWidth) / 1000;
       const customHeight = parseFloat(formData.customHeight) / 1000;
       const customArea = customWidth * customHeight;
-
       const A0_FORMAT = FORMATS.find(f => f.id === 'A0')!;
       const A0_AREA = A0_FORMAT.width * A0_FORMAT.height / 1000000;
       const A0_PRICE = A0_FORMAT.price_pln_netto;
       const pricePerM2 = A0_PRICE / A0_AREA; 
-      
       basePricePerUnit = customArea * pricePerM2;
       basePricePerUnit = Math.max(basePricePerUnit, FORMATS.find(f => f.id === 'A4')!.price_pln_netto);
     }
     
-    // Ustawienie minimalnej ceny na cenę A4 nawet w przypadku małych niestandardowych
     basePricePerUnit = Math.max(basePricePerUnit, FORMATS.find(f => f.id === 'A4')!.price_pln_netto);
-
 
     const materialMultiplier = selectedMaterial ? selectedMaterial.price_multiplier : 1.0;
     const lengthMultiplier = selectedLengthMultiplier ? selectedLengthMultiplier.multiplier : 1.0;
     const colorMultiplier = selectedColorOption ? selectedColorOption.multiplier : 1.0;
 
     const unitPriceNetto = basePricePerUnit * materialMultiplier * lengthMultiplier * colorMultiplier;
-
-    // Całkowita cena netto
     const totalPriceNetto = unitPriceNetto * quantity;
-    let vatAmount = totalPriceNetto * VAT_RATE;
-    let totalPriceBrutto = totalPriceNetto + vatAmount;
+    
+    // Dodajemy opłatę za kopię (ksero): +2 zł brutto za arkusz
+    const copyFeeBrutto = COPY_FEE_PER_SHEET * quantity;
+    const copyFeeNetto = copyFeeBrutto / (1 + VAT_RATE);
+    const copyFeeVat = copyFeeBrutto - copyFeeNetto;
+    
+    let totalNetto = totalPriceNetto + copyFeeNetto;
+    let vatAmount = (totalPriceNetto * VAT_RATE) + copyFeeVat;
+    let totalPriceBrutto = totalPriceNetto + (totalPriceNetto * VAT_RATE) + copyFeeBrutto;
 
-    // Jeśli wybrano paczkomat InPost (PACZKOMAT !== 'Odbiór osobisty' i niepuste), dolicz opłatę dostawy
-    let totalNetto = totalPriceNetto;
+    // Dodajemy opłatę za InPost jeśli wybrano
     if (formData.PACZKOMAT && formData.PACZKOMAT.toString().trim() !== 'Odbiór osobisty') {
       const shippingBrutto = INPOST_FEE_BRUTTO;
       const shippingNetto = shippingBrutto / (1 + VAT_RATE);
       const shippingVat = shippingBrutto - shippingNetto;
-      // Dodajemy składniki dostawy do łącznych wartości
       totalPriceBrutto += shippingBrutto;
       vatAmount += shippingVat;
       totalNetto += shippingNetto;
-    }
-
-    // Jeśli użytkownik wybrał "KOPIĘ", doliczamy opłatę za każdy arkusz (brutto)
-    if (formData.TYPE === 'COPY') {
-      const copyBrutto = COPY_SURCHARGE_BRUTTO * quantity;
-      const copyNetto = copyBrutto / (1 + VAT_RATE);
-      const copyVat = copyBrutto - copyNetto;
-      totalPriceBrutto += copyBrutto;
-      vatAmount += copyVat;
-      totalNetto += copyNetto;
     }
 
     return {
@@ -427,40 +380,33 @@ const Print_pricing: React.FC = () => {
       brutto: totalPriceBrutto,
       nettoDisplay: totalNetto.toFixed(2),
     };
-  }, [formData.format, formData.customWidth, formData.customHeight, formData.quantity, formData.material, formData.printLengthMultiplier, formData.colorOption, formData.PACZKOMAT, formData.TYPE]);
+  }, [formData.format, formData.customWidth, formData.customHeight, formData.quantity, formData.material, formData.printLengthMultiplier, formData.colorOption, formData.PACZKOMAT]);
 
-
-  // FUNKCJA OBSŁUGI SUBMITU I PŁATNOŚCI
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
-    if (!validate() || errors.file) { // Sprawdzenie ogólnej walidacji i błędu pliku
+    if (!validate() || errors.file) {
       setMessage({ type: 'error', text: 'Proszę popraw błędy w formularzu.' });
       return;
     }
 
     setIsSubmitting(true);
 
-    // Jeśli nie wybrano paczkomatu, traktujemy to jako odbiór osobisty
     const finalFormData = {
       ...formData,
       PACZKOMAT: formData.PACZKOMAT && formData.PACZKOMAT.toString().trim() ? formData.PACZKOMAT : 'Odbiór osobisty',
     };
 
-    // Uaktualnij lokalny stan tak, aby UI odzwierciedlało decyzję
     setFormData(prev => ({ ...prev, PACZKOMAT: finalFormData.PACZKOMAT }));
 
     let filePath = null;
     if (formData.file) {
         try {
-            // Użyj obiektu FormData do wysłania pliku
             const fileData = new FormData();
             fileData.append('file', formData.file);
-
-            // Wywołaj nowy endpoint API odpowiedzialny za tymczasowy upload
             const uploadResponse = await fetch('/api/upload-temp', {
                 method: 'POST',
-                body: fileData, // Nie ustawiamy Content-Type, przeglądarka zrobi to automatycznie
+                body: fileData,
             });
             const uploadResult = await uploadResponse.json();
 
@@ -482,21 +428,17 @@ const Print_pricing: React.FC = () => {
     const calculatedPriceNetto = netto;
     const fileName = formData.file?.name || 'Brak pliku';
     const fileSizeKB = formData.file ? Math.round(formData.file.size / 1024) : 0;
-    
-    // UWAGA: Przesłanie pliku (formData.file) musi odbyć się osobnym żądaniem po pomyślnej płatności
-    // lub za pomocą biblioteki Storage (np. Supabase Storage)
 
     try {
-      // 1. Wywołaj API, które zapisze zamówienie do DB i zainicjuje sesję Stripe
       const response = await fetch('/api/checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          formData: finalFormData, // Wszystkie dane formularza do zapisu (PACZKOMAT domyślnie 'Odbiór osobisty' jeśli nie wybrano)
-          priceInCents: priceInCents, // Cena brutto w groszach do Stripe
-          calculatedPriceNetto: calculatedPriceNetto, // Cena netto do bazy danych
+          formData: finalFormData,
+          priceInCents: priceInCents,
+          calculatedPriceNetto: calculatedPriceNetto,
           fileName: fileName,
           fileSizeKB: fileSizeKB,
           filePath: filePath,
@@ -519,11 +461,9 @@ const Print_pricing: React.FC = () => {
     }
   };
 
-
   const materialOptions = MATERIALS.map(m => ({ value: m.id, label: m.label }));
   const lengthMultiplierOptions = LENGTH_MULTIPLIERS.map(l => ({ value: l.id, label: l.label }));
   const colorOptions = COLOR_OPTIONS.map(c => ({ value: c.id, label: c.label }));
-  
   const isCustomFormat = formData.format === 'CUSTOM';
 
   return (
@@ -534,11 +474,11 @@ const Print_pricing: React.FC = () => {
       `}</style>
       <div className="max-w-4xl mx-auto">
         <header className="text-center mb-10">
-          <h1 className="text-4xl font-bold text-indigo-700 mb-2">
-            Kalkulator Wydruków i Zamówień
+          <h1 className="text-4xl font-bold text-orange-700 mb-2">
+            Kalkulator Kopii (Ksero)
           </h1>
           <p className="text-gray-500">
-            Wypełnij formularz, aby oszacować koszt i złożyć zamówienie.
+            Zamów kopię w dowolnym formacie. Cena bazowa jak druk + 2 zł za sztukę.
           </p>
         </header>
 
@@ -552,12 +492,10 @@ const Print_pricing: React.FC = () => {
         )}
 
         <form className="space-y-6" onSubmit={handleSubmit}>
-          {/* Sekcja 1: Dane wydruku */}
-          <FormSection title="Parametry Wydruku" icon={Ruler}>
-            {/* Format i Ilość */}
+          <FormSection title="Parametry Kopii" icon={Copy}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <SelectField
-                label="Format Wydruku"
+                label="Format Kopii"
                 name="format"
                 value={formData.format}
                 onChange={handleChange}
@@ -576,9 +514,8 @@ const Print_pricing: React.FC = () => {
               />
             </div>
 
-            {/* Własny Rozmiar */}
             {isCustomFormat && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-indigo-50 p-4 rounded-lg mt-4 border border-indigo-200">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-orange-50 p-4 rounded-lg mt-4 border border-orange-200">
                 <InputField
                   label="Szerokość własna (mm)"
                   name="customWidth"
@@ -602,36 +539,33 @@ const Print_pricing: React.FC = () => {
               </div>
             )}
 
-            {/* Materiał, Kolor i Długość Rolki */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
               <SelectField
-                label="Materiał / Nośnik (wpływa na cenę)"
+                label="Materiał / Nośnik"
                 name="material"
                 value={formData.material}
                 onChange={handleChange}
                 options={materialOptions}
                 required
               />
-
-              {/* Opcja Koloru */}
               <SelectField
-                label="Opcja Koloru (Mnożnik)"
+                label="Opcja Koloru"
                 name="colorOption"
                 value={formData.colorOption}
                 onChange={handleChange}
                 options={colorOptions}
                 required
               />
-
-
               <SelectField
-                label="Mnożnik Długości (Druk z rolki)"
+                label="Mnożnik Długości"
                 name="printLengthMultiplier"
                 value={formData.printLengthMultiplier}
                 onChange={handleChange}
                 options={lengthMultiplierOptions}
                 required
               />
+            </div>
+
             <div className="mt-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Załącz plik (max. 10MB)
@@ -641,8 +575,7 @@ const Print_pricing: React.FC = () => {
                 name="file"
                 onChange={handleChange}
                 accept=".dwg,.dxf,.pdf,.jpg,.jpeg,.jpe,.png,.bmp,.tiff,.ifc,.xcf,.doc,.xls"
-                className="block w-full text-sm text-gray-600 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer transition duration-150"
-                
+                className="block w-full text-sm text-gray-600 file:py-2 file:px-4 file:rounded-full file:border-0 file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 cursor-pointer transition duration-150"
               />
               {formData.file && !errors.file && (
                 <p className="mt-2 text-xs text-gray-500">
@@ -651,14 +584,9 @@ const Print_pricing: React.FC = () => {
               )}
               {errors.file && <p className="mt-1 text-sm text-red-600">{errors.file}</p>}
             </div>
-            </div>
-
-             {/* Sekcja Wykończenia (zakomentowana) */}
-
           </FormSection>
 
-          {/* Sekcja 2: Dane Kontaktowe i Plik */}
-          <FormSection title="Dane Kontaktowe i Plik" icon={Layers}>
+          <FormSection title="Dane Kontaktowe" icon={Layers}>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <InputField
                 label="Imię i nazwisko"
@@ -712,70 +640,51 @@ const Print_pricing: React.FC = () => {
                 icon={User}
                 error={errors.REGON}
               />
-                {/* InPost Map Button */}
-                <div className="mb-4 flex flex-col justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setShowInpostMap(true)}
-                    aria-label="Wybierz paczkomat InPost"
-                    className="w-full h-[4.5vh] rounded-md text-left font-semibold text-indigo-700 border border-indigo-200 bg-white hover:bg-indigo-50 transition duration-200 shadow-sm relative bottom-0 flex items-center gap-3 px-3"
-                  >
-                    <Mail className="h-5 w-5 text-indigo-600" aria-hidden="true" />
-                    <span>Wybierz paczkomat InPost</span>
-                  </button>
-                </div>
-                {/* Zamów kopię (third button) */}
-                <div className="mb-4 flex flex-col justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, TYPE: prev.TYPE === 'COPY' ? 'PRINT' : 'COPY' }))}
-                    aria-label="Zamów kopię"
-                    className={`w-full h-[4.5vh] rounded-md text-left font-semibold border ${formData.TYPE === 'COPY' ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700' : 'bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50'} transition duration-200 shadow-sm relative bottom-0 flex items-center gap-3 px-3`}
-                  >
-                    <Archive className={`h-5 w-5 ${formData.TYPE === 'COPY' ? 'text-white' : 'text-indigo-600'}`} aria-hidden="true" />
-                    <span>ZAMÓW KOPIĘ</span>
-                  </button>
-                  <p className="mt-2 text-xs text-gray-500">Kopia: struktura kosztów jak druk — dodatkowo <strong>+2,00 PLN</strong> na arkusz.</p>
-                </div>
+              <div className="mb-4 flex flex-col justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowInpostMap(true)}
+                  aria-label="Wybierz paczkomat InPost"
+                  className="w-full h-[4.5vh] rounded-md text-left font-semibold text-orange-700 border border-orange-200 bg-white hover:bg-orange-50 transition duration-200 shadow-sm relative bottom-0 flex items-center gap-3 px-3"
+                >
+                  <Mail className="h-5 w-5 text-orange-600" aria-hidden="true" />
+                  <span>Wybierz paczkomat InPost</span>
+                </button>
               </div>
-              {/* Informacja: domyślny odbiór osobisty jeśli brak wyboru paczkomatu */}
-              {!formData.PACZKOMAT && (
-                <p className="mt-2 text-sm text-gray-500 flex items-center gap-5">
-                  <Info className="h-5 w-5"></Info>
-                  <span>
-                    Jeśli nie wybierzesz paczkomatu, odbiór zostanie ustawiony jako <strong>Odbiór osobisty</strong>.
-                    <br/>Alfreda Jahna 5a, 54-703 Wrocław
-                  </span>
-                </p>
-              )}
-              {/* Display selected InPost paczkomat */}
-              {formData.PACZKOMAT && (
-                <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
-                  <p className="text-sm font-semibold text-gray-700">Wybrany:</p>
-                  <pre className="text-xs text-gray-600 mt-1">
-                    {formData.PACZKOMAT}
-                    </pre>
-                </div>
-              )}
+            </div>
+
+            {!formData.PACZKOMAT && (
+              <p className="mt-2 text-sm text-gray-500 flex items-center gap-5">
+                <Info className="h-5 w-5"></Info>
+                <span>
+                  Jeśli nie wybierzesz paczkomatu, odbiór zostanie ustawiony jako <strong>Odbiór osobisty</strong>.
+                  <br/>Alfreda Jahna 5a, 54-703 Wrocław
+                </span>
+              </p>
+            )}
+
+            {formData.PACZKOMAT && (
+              <div className="mt-4 p-4 bg-white rounded-lg border border-gray-200">
+                <p className="text-sm font-semibold text-gray-700">Wybrany:</p>
+                <pre className="text-xs text-gray-600 mt-1">{formData.PACZKOMAT}</pre>
+              </div>
+            )}
           </FormSection>
 
-          {/* Sekcja: Podsumowanie i Akcja */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t pt-6 pb-4">
             <div className="text-center sm:text-left">
               <p className="text-gray-500 text-sm uppercase font-semibold">
                 Szacowana cena brutto:
               </p>
-              <p className="text-4xl font-extrabold text-indigo-700">
+              <p className="text-4xl font-extrabold text-orange-700">
                 {calculatePrice.brutto.toFixed(2)} PLN
               </p>
               <p className="text-gray-400 text-xs mt-1">
                 Netto: {calculatePrice.nettoDisplay} PLN | VAT (23%): {calculatePrice.vat.toFixed(2)} PLN
               </p>
+              <p className="mt-1 text-sm text-gray-700">Opłata za kopię (ksero): <strong>+2,00 PLN / szt.</strong></p>
               {formData.PACZKOMAT && formData.PACZKOMAT.toString().trim() !== 'Odbiór osobisty' && (
                 <p className="mt-1 text-sm text-gray-700">Dostawa InPost: <strong>16,99 PLN</strong></p>
-              )}
-              {formData.TYPE === 'COPY' && (
-                <p className="mt-1 text-sm text-gray-700">Kopia: <strong>+2,00 PLN / szt.</strong></p>
               )}
               {errors.price && (
                 <p className="mt-2 text-sm text-red-600 font-medium">{errors.price}</p>
@@ -786,7 +695,7 @@ const Print_pricing: React.FC = () => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3 text-lg font-semibold rounded-full text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-500/50 transition duration-200 shadow-xl"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3 text-lg font-semibold rounded-full text-white bg-orange-600 hover:bg-orange-700 focus:ring-4 focus:ring-orange-500/50 transition duration-200 shadow-xl"
             >
               {isSubmitting ? (
                 <>
@@ -796,13 +705,13 @@ const Print_pricing: React.FC = () => {
               ) : (
                 <>
                   <Send className="w-5 h-5" />
-                  Złóż zamówienie i zapłać
+                  Złóż zamówienie na kopię
                 </>
               )}
             </button>
           </div>
         </form>
-        {/* InPost modal with the widget (renders only in browser) */}
+
         {showInpostMap && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="bg-white rounded-lg w-full max-w-2xl h-[70vh] overflow-hidden relative">
@@ -824,4 +733,4 @@ const Print_pricing: React.FC = () => {
   );
 };
 
-export default Print_pricing;
+export default Copy_pricing;

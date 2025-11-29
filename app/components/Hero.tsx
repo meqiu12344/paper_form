@@ -33,7 +33,7 @@ export default function Hero() {
           transition={{ duration: 0.8 }}
           className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-6 drop-shadow-lg"
         >
-          PROFESJONALNY DRUK / SKAN FORMAT A0+
+          DRUK / SKAN / KOPIA FORMAT A0+
         </motion.h1>
 
         <motion.p
@@ -42,10 +42,10 @@ export default function Hero() {
           transition={{ duration: 1, delay: 0.3 }}
           className="text-lg sm:text-xl md:text-2xl text-indigo-100 max-w-2xl mx-auto mb-8"
         >
-          Wydruki rysunków technicznych, plakatów, reklam na papierze, foliach, tekstyliach.
+          Wydruki, skanowanie i kopie rysunków technicznych, plakatów, reklam na papierze, foliach, tekstyliach.
         </motion.p>
 
-        <div className="flex center-center gap-10 m-auto max-w-md justify-center">
+        <div className="flex center-center gap-4 m-auto max-w-3xl justify-center flex-wrap">
           <motion.a
             href="#formularz-drukowania"
             whileHover={{ scale: 1.05 }}
@@ -57,9 +57,17 @@ export default function Hero() {
           <motion.a
             href="#formularz-skanowania"
             whileHover={{ scale: 1.05 }}
-            className="inline-block border-4 border-white text-white font-semibold px-6 py-3 rounded-full transition"
+            className="inline-block bg-green-700 text-white font-semibold px-6 py-3 rounded-full transition "
           >
             Zamów skan
+          </motion.a>
+
+          <motion.a
+            href="#formularz-kopii"
+            whileHover={{ scale: 1.05 }}
+            className="flex justify-center items-center bg-orange-600 text-white font-semibold px-6 py-3 rounded-full hover:bg-orange-700 transition"
+          >
+            Zamów kopię
           </motion.a>
         </div>
 

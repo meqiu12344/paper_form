@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import { ChevronDown, ChevronUp, FileText, CheckCircle, Clock, DollarSign, LogIn, Lock, User, Printer, Scan } from "lucide-react";
+import { ChevronDown, ChevronUp, FileText, CheckCircle, Clock, DollarSign, LogIn, Lock, User, Printer, Scan, Copy } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
 interface Order {
@@ -25,7 +25,7 @@ interface Order {
     filePath?: string;
     NIP: string;
     REGON: string;
-    TYPE: 'PRINT' | 'SCAN' | string;
+    TYPE: 'PRINT' | 'SCAN' | 'COPY' | string;
     PACZKOMAT?: string;
 }
 
@@ -110,9 +110,15 @@ const OrderRow: React.FC<OrderRowProps> = ({ order, markAsDone }) => {
                 </td>
                 {/* ✅ DODANY TYP ZAMÓWIENIA W WIDOKU GŁÓWNYM */}
                 <td className="py-3 px-4">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${order.TYPE === 'PRINT' ? 'bg-blue-100 text-blue-800' : 'bg-orange-100 text-orange-800'}`}>
-                        {order.TYPE === 'PRINT' ? <Printer className="w-3 h-3 mr-1" /> : <Scan className="w-3 h-3 mr-1" />}
-                        {order.TYPE === 'PRINT' ? 'Druk' : 'Skan'}
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        order.TYPE === 'PRINT' ? 'bg-blue-100 text-blue-800' : 
+                        order.TYPE === 'SCAN' ? 'bg-green-100 text-green-800' : 
+                        'bg-orange-100 text-orange-800'
+                    }`}>
+                        {order.TYPE === 'PRINT' ? <Printer className="w-3 h-3 mr-1" /> : 
+                         order.TYPE === 'SCAN' ? <Scan className="w-3 h-3 mr-1" /> : 
+                         <Copy className="w-3 h-3 mr-1" />}
+                        {order.TYPE === 'PRINT' ? 'Druk' : order.TYPE === 'SCAN' ? 'Skan' : 'Kopia'}
                     </span>
                 </td>
                 <td className="py-3 px-4">
@@ -147,7 +153,7 @@ const OrderRow: React.FC<OrderRowProps> = ({ order, markAsDone }) => {
                                 <p><strong>Adres Paczkomatu:</strong> {order.PACZKOMAT || 'N/A'}</p>
                             </div>
                             <div>
-                                <h4 className="font-semibold text-gray-700 mb-1">Szczegóły {order.TYPE === 'PRINT' ? 'Druku' : 'Skanu'}</h4>
+                                <h4 className="font-semibold text-gray-700 mb-1">Szczegóły {order.TYPE === 'PRINT' ? 'Druku' : order.TYPE === 'SCAN' ? 'Skanu' : 'Kopii'}</h4>
                                 <p><strong>Format:</strong> {order.format} (x{order.quantity})</p>
                                 {order.customWidth && <p><strong>Wymiary:</strong> {order.customWidth}x{order.customHeight} mm</p>}
                                 <p><strong>Materiał:</strong> {order.material || 'N/A'}</p>
@@ -346,9 +352,10 @@ export default function PanelPage() {
     // ✅ FILTROWANIE ZAMÓWIEŃ WEDŁUG TYPU
     const printOrders = orders.filter((o) => o.TYPE === 'PRINT');
     const scanOrders = orders.filter((o) => o.TYPE === 'SCAN');
+    const copyOrders = orders.filter((o) => o.TYPE === 'COPY');
 
     // Funkcja pomocnicza do renderowania tabeli
-    const renderOrderTable = (orderList: Order[], title: string, Icon: React.ComponentType<any>, type: 'PRINT' | 'SCAN') => {
+    const renderOrderTable = (orderList: Order[], title: string, Icon: React.ComponentType<any>, type: 'PRINT' | 'SCAN' | 'COPY') => {
         // Sortowanie: Opłacone > Oczekujące/Nieudane > Zrealizowane
         const sortedOrders = [...orderList].sort((a, b) => {
             if (a.status === 'paid' && b.status !== 'paid') return -1;
@@ -367,7 +374,7 @@ export default function PanelPage() {
                 </h2>
 
                 {orderList.length === 0 ? (
-                    <p className="text-gray-500 bg-white p-4 rounded-xl shadow-md">Brak zamówień typu {type === 'PRINT' ? 'druku' : 'skanu'}.</p>
+                    <p className="text-gray-500 bg-white p-4 rounded-xl shadow-md">Brak zamówień typu {type === 'PRINT' ? 'druku' : type === 'SCAN' ? 'skanu' : 'kopii'}.</p>
                 ) : (
                     <div className="overflow-x-auto bg-white shadow-lg rounded-xl border border-gray-100">
                         <table className="min-w-full text-sm text-left">
@@ -415,6 +422,11 @@ export default function PanelPage() {
 
             {/* ✅ SEKCJA ZAMÓWIEŃ SKANU */}
             {renderOrderTable(scanOrders, "Zlecenia Skanu", Scan, 'SCAN')}
+
+            <hr className="my-8 border-t border-indigo-200" />
+
+            {/* ✅ SEKCJA ZAMÓWIEŃ KOPII */}
+            {renderOrderTable(copyOrders, "Zlecenia Kopii (Ksero)", Copy, 'COPY')}
 
         </div>
     );

@@ -7,6 +7,8 @@ import { Archive, Layers, Ruler, Mail, Phone, User, Send, Check, Building, Penci
 const VAT_RATE = 0.23;
 // Opłata za dostawę InPost (brutto)
 const INPOST_FEE_BRUTTO = 16.99;
+// Dodatkowa opłata za zamówienie kopii (brutto) na arkusz
+const COPY_SURCHARGE_BRUTTO = 2.0;
 // --- INTERFEJSY (INTERFACES) ---
 interface ScanFormData {
   format: string;
@@ -276,6 +278,7 @@ const Scan_pricing: React.FC = () => {
     const totalPriceNetto = unitPriceNetto * quantity;
     let vatAmount = totalPriceNetto * VAT_RATE;
     let totalPriceBrutto = totalPriceNetto + vatAmount;
+    let totalNetto = totalPriceNetto;
 
     // Jeśli wybrano paczkomat InPost (PACZKOMAT !== 'Odbiór osobisty' i niepuste), dolicz opłatę dostawy
     if (formData.PACZKOMAT && formData.PACZKOMAT.toString().trim() !== 'Odbiór osobisty') {
@@ -284,22 +287,26 @@ const Scan_pricing: React.FC = () => {
       const shippingVat = shippingBrutto - shippingNetto;
       totalPriceBrutto += shippingBrutto;
       vatAmount += shippingVat;
-      const totalNettoWithShipping = totalPriceNetto + shippingNetto;
-      return {
-        netto: totalNettoWithShipping,
-        vat: vatAmount,
-        brutto: totalPriceBrutto,
-        nettoDisplay: totalNettoWithShipping.toFixed(2),
-      };
+      totalNetto += shippingNetto;
+    }
+
+    // Jeśli użytkownik wybrał "KOPIĘ", doliczamy opłatę za każdy arkusz (brutto)
+    if (formData.TYPE === 'COPY') {
+      const copyBrutto = COPY_SURCHARGE_BRUTTO * quantity;
+      const copyNetto = copyBrutto / (1 + VAT_RATE);
+      const copyVat = copyBrutto - copyNetto;
+      totalPriceBrutto += copyBrutto;
+      vatAmount += copyVat;
+      totalNetto += copyNetto;
     }
 
     return {
-      netto: totalPriceNetto,
+      netto: totalNetto,
       vat: vatAmount,
       brutto: totalPriceBrutto,
-      nettoDisplay: totalPriceNetto.toFixed(2),
+      nettoDisplay: totalNetto.toFixed(2),
     };
-  }, [formData.format, formData.customWidth, formData.customHeight, formData.quantity, formData.material, formData.printLengthMultiplier, formData.colorOption, formData.PACZKOMAT]);
+  }, [formData.format, formData.customWidth, formData.customHeight, formData.quantity, formData.material, formData.printLengthMultiplier, formData.colorOption, formData.PACZKOMAT, formData.TYPE]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -584,6 +591,19 @@ const Scan_pricing: React.FC = () => {
                   <span>Wybierz paczkomat InPost</span>
                 </button>
               </div>
+              {/* Zamów kopię (third button) */}
+              <div className="mb-4 flex flex-col justify-end">
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, TYPE: prev.TYPE === 'COPY' ? 'SCAN' : 'COPY' }))}
+                  aria-label="Zamów kopię"
+                  className={`w-full h-[5vh] rounded-md text-left font-semibold border ${formData.TYPE === 'COPY' ? 'bg-green-600 text-white border-green-600 hover:bg-green-700' : 'bg-white text-green-700 border-green-200 hover:bg-green-50'} transition duration-200 shadow-sm relative bottom-0 flex items-center gap-3 px-3`}
+                >
+                  <Archive className={`h-5 w-5 ${formData.TYPE === 'COPY' ? 'text-white' : 'text-green-600'}`} aria-hidden="true" />
+                  <span>ZAMÓW KOPIĘ</span>
+                </button>
+                <p className="mt-2 text-xs text-gray-500">Kopia: struktura kosztów jak druk — dodatkowo <strong>+2,00 PLN</strong> na arkusz.</p>
+              </div>
             </div>
 
             {/* Informacja: domyślny odbiór osobisty jeśli brak wyboru paczkomatu */}
@@ -624,6 +644,9 @@ const Scan_pricing: React.FC = () => {
               )}
               {errors.price && (
                 <p className="mt-2 text-sm text-red-600 font-medium">{errors.price}</p>
+              )}
+              {formData.TYPE === 'COPY' && (
+                <p className="mt-1 text-sm text-gray-700">Kopia: <strong>+2,00 PLN / szt.</strong></p>
               )}
               <p className="mt-2 text-sm text-gray-500">Uwaga: cena zamówienia może wynosić minimalnie <strong>2,00&nbsp;PLN</strong>.</p>
             </div>

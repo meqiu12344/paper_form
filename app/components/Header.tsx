@@ -26,7 +26,7 @@ const Header: React.FC = () => {
             <Link href="/" className="text-gray-700 hover:text-indigo-600">Strona główna</Link>
             <Link href="#formularz-drukowania" className="text-gray-700 hover:text-indigo-600">Druk</Link>
             <Link href="#formularz-skanowania" className="text-gray-700 hover:text-indigo-600">Skan</Link>
-            <Link href="tel:730496403" className="bg-blue-700 p-3 rounded-2xl text-white">Zadzwoń</Link>
+            <Link href="tel:717351284" className="bg-blue-700 p-3 rounded-2xl text-white">Zadzwoń</Link>
           </nav>
 
           {/* Mobile menu button */}
@@ -55,7 +55,7 @@ const Header: React.FC = () => {
             <Link href="/" className="text-gray-700 hover:text-indigo-600">Strona główna</Link>
             <Link href="#formularz-drukowania" className="text-gray-700 hover:text-indigo-600">Druk</Link>
             <Link href="#formularz-skanowania" className="text-gray-700 hover:text-indigo-600">Skan</Link>
-            <Link href="tel:730496403" className="bg-blue-700 p-3 rounded-2xl text-white">Zadzwoń</Link>
+            <Link href="tel:717351284" className="bg-blue-700 p-3 rounded-2xl text-white">Zadzwoń</Link>
           </div>
         </div>
       )}
