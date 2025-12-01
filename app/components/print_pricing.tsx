@@ -724,19 +724,6 @@ const Print_pricing: React.FC = () => {
                     <span>Wybierz paczkomat InPost</span>
                   </button>
                 </div>
-                {/* Zamów kopię (third button) */}
-                <div className="mb-4 flex flex-col justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, TYPE: prev.TYPE === 'COPY' ? 'PRINT' : 'COPY' }))}
-                    aria-label="Zamów kopię"
-                    className={`w-full h-[4.5vh] rounded-md text-left font-semibold border ${formData.TYPE === 'COPY' ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700' : 'bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50'} transition duration-200 shadow-sm relative bottom-0 flex items-center gap-3 px-3`}
-                  >
-                    <Archive className={`h-5 w-5 ${formData.TYPE === 'COPY' ? 'text-white' : 'text-indigo-600'}`} aria-hidden="true" />
-                    <span>ZAMÓW KOPIĘ</span>
-                  </button>
-                  <p className="mt-2 text-xs text-gray-500">Kopia: struktura kosztów jak druk — dodatkowo <strong>+2,00 PLN</strong> na arkusz.</p>
-                </div>
               </div>
               {/* Informacja: domyślny odbiór osobisty jeśli brak wyboru paczkomatu */}
               {!formData.PACZKOMAT && (
