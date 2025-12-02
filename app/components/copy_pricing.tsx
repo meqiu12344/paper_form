@@ -355,14 +355,33 @@ const Copy_pricing: React.FC = () => {
     const unitPriceNetto = basePricePerUnit * materialMultiplier * lengthMultiplier * colorMultiplier;
     const totalPriceNetto = unitPriceNetto * quantity;
     
-    // Dodajemy opłatę za kopię (ksero): +2 zł brutto za arkusz
-    const copyFeeBrutto = COPY_FEE_PER_SHEET * quantity;
-    const copyFeeNetto = copyFeeBrutto / (1 + VAT_RATE);
-    const copyFeeVat = copyFeeBrutto - copyFeeNetto;
+    let totalNetto = totalPriceNetto;
+    let vatAmount = totalPriceNetto * VAT_RATE;
+    let totalPriceBrutto = totalPriceNetto + vatAmount;
     
-    let totalNetto = totalPriceNetto + copyFeeNetto;
-    let vatAmount = (totalPriceNetto * VAT_RATE) + copyFeeVat;
-    let totalPriceBrutto = totalPriceNetto + (totalPriceNetto * VAT_RATE) + copyFeeBrutto;
+    // Dodajemy opłatę za kopię (ksero) w zależności od formatu
+    // Dla A4 i A3: suma cen skanu i wydruku
+    // Dla A2 i większych: wydruk + 2 zł
+    if (formData.format === 'A4' || formData.format === 'A3') {
+      // Ceny skanu: A4 = 0.20 PLN netto, A3 = 0.40 PLN netto
+      const scanPrices: { [key: string]: number } = {
+        'A4': 0.20,
+        'A3': 0.40
+      };
+      const scanPriceNetto = scanPrices[formData.format] * colorMultiplier * quantity;
+      totalNetto += scanPriceNetto;
+      vatAmount += scanPriceNetto * VAT_RATE;
+      totalPriceBrutto += scanPriceNetto * (1 + VAT_RATE);
+    } else if (formData.format !== 'CUSTOM') {
+      // A2 i większe: wydruk + 2 zł brutto za sztukę
+      const copyFeeBrutto = COPY_FEE_PER_SHEET * quantity;
+      const copyFeeNetto = copyFeeBrutto / (1 + VAT_RATE);
+      const copyFeeVat = copyFeeBrutto - copyFeeNetto;
+      
+      totalNetto += copyFeeNetto;
+      vatAmount += copyFeeVat;
+      totalPriceBrutto += copyFeeBrutto;
+    }
 
     // Dodajemy opłatę za InPost jeśli wybrano
     if (formData.PACZKOMAT && formData.PACZKOMAT.toString().trim() !== 'Odbiór osobisty') {
@@ -682,7 +701,6 @@ const Copy_pricing: React.FC = () => {
               <p className="text-gray-400 text-xs mt-1">
                 Netto: {calculatePrice.nettoDisplay} PLN | VAT (23%): {calculatePrice.vat.toFixed(2)} PLN
               </p>
-              <p className="mt-1 text-sm text-gray-700">Opłata za kopię (ksero): <strong>+2,00 PLN / szt.</strong></p>
               {formData.PACZKOMAT && formData.PACZKOMAT.toString().trim() !== 'Odbiór osobisty' && (
                 <p className="mt-1 text-sm text-gray-700">Dostawa InPost: <strong>16,99 PLN</strong></p>
               )}
