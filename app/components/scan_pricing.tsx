@@ -489,7 +489,7 @@ const Scan_pricing: React.FC = () => {
                 name="colorOption"
                 value={formData.colorOption}
                 onChange={handleChange}
-                options={COLOR_OPTIONS.map(c => ({ value: c.id, label: `${c.label} (Mnożnik: x${c.multiplier})` }))}
+                options={COLOR_OPTIONS.map(c => ({ value: c.id, label: `${c.label}` }))}
                 required
               />
               <InputField
